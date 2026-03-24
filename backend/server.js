@@ -9,7 +9,7 @@ const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryW
 const client = new MongoClient(url);
 let db;
 
-// ✅ Routes registered FIRST, outside async function
+//  Routes registered FIRST, outside async function
 app.get('/api/ping', (req, res) => {
   res.status(200).json({ message: 'Hello World' });
 });
