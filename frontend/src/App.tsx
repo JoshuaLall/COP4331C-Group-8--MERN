@@ -1,10 +1,9 @@
-import './App.css';
+import './CSS/App.css';
 import LoginPage from './pages/LoginPage.tsx';
 
-function App()
-{
+function App() {
   return (
-  <LoginPage />
-);
+    <LoginPage />
+  );
 }
 export default App;
