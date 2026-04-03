@@ -1,20 +1,25 @@
-//TODO: setup
+const express = require('express');
+const router = express.Router();
 
-// POST /api/recurring-chores
-// incoming: HouseholdID, Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, CreatedByUserID
-// outgoing: RecurringTemplateID, error
+module.exports = function(db) {
 
-// GET /api/recurring-chores
-// incoming: HouseholdID
-// outgoing: results[], error
+  // POST /api/recurring-chores
+  // incoming: HouseholdID, Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, CreatedByUserID
+  // outgoing: RecurringTemplateID, error
 
-// PUT /api/recurring-chores/:id
-// incoming: Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, IsActive
-// outgoing: error
+  // GET /api/recurring-chores
+  // incoming: HouseholdID
+  // outgoing: results[], error
 
-// DELETE /api/recurring-chores/:id
-// incoming: RecurringTemplateID
-// outgoing: error
+  // PUT /api/recurring-chores/:id
+  // incoming: Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, IsActive
+  // outgoing: error
 
+  // DELETE /api/recurring-chores/:id
+  // incoming: RecurringTemplateID
+  // outgoing: error
 
-//NOTE: IsActive should be set here
+  //NOTE: IsActive should be set here
+
+  return router;
+};

@@ -22,4 +22,5 @@ module.exports = function(db) {
   // outgoing: results[], error
 
   // TODO
+  return router;
 };

@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/ChoreApp?retryWrites=true&w=majority&appName=Cluster0';
 const client = new MongoClient(url);
 let db;
 
@@ -40,11 +40,11 @@ app.get('/api/testread', async (req, res) => {
 async function startServer() {
   try {
     await client.connect();
-    db = client.db('mernproject');
+    db = client.db('ChoreApp');
     console.log('MongoDB connected');
 
     //-- API Route Imports
-    const authRoutes = require('./routes/authRoutes');
+    const authRoutes = require('./routes/authRoutes')(db);
     const userRoutes = require('./routes/userRoutes');
     const householdRoutes = require('./routes/householdRoutes');
     const choreRoutes = require('./routes/choreRoutes');
