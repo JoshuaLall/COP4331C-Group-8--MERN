@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; //M: added for navigation
 import "../CSS/Dashboard.css";
 
 const tabs = ["Open", "Assigned", "My Chores", "Completed"] as const;
@@ -7,6 +8,7 @@ type Tab = typeof tabs[number];
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Open");
     const [activeSideItem, setActiveSideItem] = useState("Open Chores");
+    const navigate = useNavigate(); //M: added for navigation
 
     // ── TODO: replace with real data from API ──
     const chores: any[] = [];
@@ -51,7 +53,16 @@ export default function Dashboard() {
                     <div
                         key={label}
                         className={`sb-item ${activeSideItem === label ? "active" : ""}`}
-                        onClick={() => setActiveSideItem(label)}
+                        onClick={() => {
+                            setActiveSideItem(label);
+                            if (label === "My Chores") {
+                                navigate("/my-chores");
+                            }
+                            if (label === "Open Chores") {
+                                navigate("/dashboard");
+                            }
+                        }
+                    }
                     >
                         <span>{icon}</span>
                         {label}
