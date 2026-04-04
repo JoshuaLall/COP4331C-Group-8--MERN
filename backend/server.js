@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+
 const { MongoClient } = require('mongodb');
 const app = express();
 app.use(cors());
@@ -39,8 +40,23 @@ app.get('/api/testread', async (req, res) => {
 async function startServer() {
   try {
     await client.connect();
-    db = client.db('mernproject');
+    db = client.db('ChoreApp');
     console.log('MongoDB connected');
+
+    //-- API Route Imports
+    const authRoutes = require('./routes/authRoutes')(db);
+    const userRoutes = require('./routes/userRoutes');
+    const householdRoutes = require('./routes/householdRoutes');
+    const choreRoutes = require('./routes/choreRoutes');
+    const recurringChoreRoutes = require('./routes/recurringChoreRoutes');
+
+    //-- API Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/users', userRoutes);
+    app.use('/api/households', householdRoutes);
+    app.use('/api/chores', choreRoutes);
+    app.use('/api/recurring-chores', recurringChoreRoutes);
+
     app.listen(5000, () => {
       console.log('Server running on port 5000');
     });
