@@ -580,3 +580,111 @@
 .links-row a:hover {
     text-decoration: underline;
 }
+
+/* ── Two column input row ── */
+.inp-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.inp-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.inp-col .inp {
+    margin-bottom: 0;
+}
+
+/* ── Household section divider ── */
+.household-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0 4px;
+    color: #8C4A3C;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.household-divider::before,
+.household-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #D9CEB5;
+}
+
+/* ── Invite code input ── */
+.invite-code-inp {
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    color: #8C4A3C;
+}
+
+/* ── Forgot password modal ── */
+.fp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(61, 43, 26, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.fp-modal {
+    background: #F2EBD9;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 380px;
+    padding: 32px 28px;
+    border: 1.5px solid #E2D9C8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.fp-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+}
+
+.fp-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: #3D2B1A;
+    margin-bottom: 8px;
+}
+
+.fp-sub {
+    font-size: 13px;
+    color: #9A8C78;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.fp-sub strong {
+    color: #3D2B1A;
+}
+
+.fp-cancel {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: #9A8C78;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: underline;
+}
+
+.fp-cancel:hover {
+    color: #3D2B1A;
+}
