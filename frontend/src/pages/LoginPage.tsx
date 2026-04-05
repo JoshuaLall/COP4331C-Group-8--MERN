@@ -3,7 +3,7 @@ import { useState } from "react";
 import "../CSS/Login.css";
 
 export default function Login() {
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const navigate = useNavigate();
 
@@ -14,7 +14,7 @@ export default function Login() {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                Login: email,
+                Login: username,
                 Password: password
             })
         });
@@ -93,13 +93,13 @@ export default function Login() {
                 <div className="brand">Our<em>Place</em></div>
                 <div className="sub">Your shared home, organized together</div>
 
-                <label className="lbl">Email</label>
+                <label className="lbl">Username</label>
                 <input
                     className="inp"
-                    type="email"
-                    placeholder="you@ourplace.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                 />
 
                 <label className="lbl">Password</label>
