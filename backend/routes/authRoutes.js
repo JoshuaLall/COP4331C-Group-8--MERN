@@ -32,7 +32,7 @@ module.exports = function(db) {
         VerifyToken: '', 
         ResetToken: '',
         ResetExpires: null,
-        HouseholdId: null,
+        HouseholdID: null,
         CreatedAt: new Date().toISOString(),
         UpdatedAt: new Date().toISOString()
       };
@@ -61,6 +61,7 @@ module.exports = function(db) {
         UserID: user.UserID,
         FirstName: user.FirstName,
         LastName: user.LastName,
+        HouseholdID: user.HouseholdId,
         error: ''
       });
 
@@ -166,7 +167,7 @@ module.exports = function(db) {
         FirstName: user.FirstName,
         LastName: user.LastName,
         Email: user.Email,
-        HouseholdId: user.HouseholdId,
+        HouseholdID: user.HouseholdId,
         error: ''
       });
     } catch(e) {

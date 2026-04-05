@@ -20,11 +20,13 @@ export default function Login() {
         });
 
         const data = await res.json();
+        console.log("LOGIN RESPONSE:", data);
+        console.log(data);
 
         if (data.error === "") {
             // save the logged-in user's id so other pages can use it
             localStorage.setItem("userId", data.UserID);
-
+            localStorage.setItem("householdId", data.HouseholdID);
             navigate("/dashboard");
         } else {
             alert(data.error);

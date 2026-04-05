@@ -22,6 +22,8 @@ export default function Dashboard() {
     // stores completed chores
     const [completedChores, setCompletedChores] = useState<any[]>([]);
 
+    // stores all actively assigned chores in household
+    const [assignedChores, setAssignedChores] = useState<any[]>([]);
 
     // runs once when the dashboard first loads
     // calls the backend to get chores assigned to current user
@@ -33,7 +35,8 @@ export default function Dashboard() {
                 return;
             }
             try {
-                const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}`);
+                const householdId = localStorage.getItem("householdId");
+                const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`);
                 const data = await res.json();
 
                 // if backend sends no error, save the chores into state
@@ -54,7 +57,8 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchOpenChores = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/chores/open");
+                const householdId = localStorage.getItem("householdId");
+                const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
                 const data = await res.json();
 
                 if (data.error === "") {
@@ -79,7 +83,8 @@ export default function Dashboard() {
             }
 
             try {
-                const res = await fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}`);
+                const householdId = localStorage.getItem("householdId");
+                const res = await fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}&HouseholdID=${householdId}`);
                 const data = await res.json();
 
                 if (data.error === "") {
@@ -94,6 +99,32 @@ export default function Dashboard() {
 
         fetchCompletedChores();
     }, [userId]);
+
+    useEffect(() => {
+        const fetchAssignedChores = async () => {
+            const householdId = localStorage.getItem("householdId");
+
+            if (!householdId) {
+                console.log("No householdId found");
+                return;
+            }
+
+            try {
+                const res = await fetch(`http://localhost:5000/api/chores/assigned?HouseholdID=${householdId}`);
+                const data = await res.json();
+
+                if (data.error === "") {
+                    setAssignedChores(data.results);
+                } else {
+                    console.log(data.error);
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+
+        fetchAssignedChores();
+    }, []);
 
     // sends a request to backend to claim a chore for current user
     const handleClaim = async (choreId: number) => {
@@ -182,6 +213,8 @@ export default function Dashboard() {
     const chores =
         activeTab === "Open"
             ? openChores
+            : activeTab === "Assigned"
+            ? assignedChores
             : activeTab === "My Chores"
             ? myChores
             : activeTab === "Completed"

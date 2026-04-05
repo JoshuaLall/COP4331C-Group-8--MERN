@@ -17,57 +17,74 @@ module.exports = function(db) {
 
   // returns chores that are NOT assigned yet
   router.get('/open', async (req, res) => {
-    try {
-      const results = await db.collection('Chores').find({
-        AssignedToUserID: null
-      }).toArray();
+  const householdId = parseInt(req.query.HouseholdID);
 
-      res.status(200).json({ error: "", results });
-    } catch (e) {
-      res.status(500).json({ error: e.toString() });
-    }
-  });
+  if (!householdId) {
+    return res.status(400).json({ error: 'HouseholdID is required' });
+  }
+
+  try {
+    const results = await db.collection('Chores').find({
+      HouseholdID: householdId,
+      AssignedToUserID: null,
+      Status: { $ne: 'completed' }
+    }).toArray();
+
+    res.status(200).json({ error: "", results });
+  } catch (e) {
+    res.status(500).json({ error: e.toString(), results: [] });
+  }
+});
 
   // GET /api/chores/assigned
   // incoming: HouseholdID
   // outgoing: results[], error
+  router.get('/assigned', async (req, res) => {
+    const householdId = parseInt(req.query.HouseholdID);
+
+    if (!householdId) {
+      return res.status(400).json({ error: 'HouseholdID is required' });
+    }
+
+    try {
+      const results = await db.collection('Chores').find({
+        HouseholdID: householdId,
+        AssignedToUserID: { $ne: null },
+        Status: { $ne: 'completed' }
+      }).toArray();
+
+      res.status(200).json({ error: '', results });
+    } catch (e) {
+      res.status(500).json({ error: e.toString(), results: [] });
+    }
+  });
 
   // GET /api/chores/my
   // incoming: UserID
   // outgoing: results[], error
 
   router.get('/my', async (req, res) => {
-
-    // 1: get UserID from query params
-    // Example request: /api/chores/my?UserID=1
     const userId = parseInt(req.query.UserID);
+    const householdId = parseInt(req.query.HouseholdID);
 
-    // 2: basic validation
-    // if no userId is provided -> send error
     if (!userId) {
       return res.status(400).json({ error: "UserID is required" });
     }
 
+    if (!householdId) {
+      return res.status(400).json({ error: "HouseholdID is required" });
+    }
+
     try {
-      // 3: query MongoDB
-      // find all chores where AssignedToUserID matches this user
       const results = await db.collection('Chores').find({
+        HouseholdID: householdId,
         AssignedToUserID: userId,
         Status: { $ne: 'completed' }
       }).toArray();
 
-      // 4: send results back to frontend
-      // frontend will use this to display "My Chores"
-      res.status(200).json({
-        error: "",
-        results: results
-      });
-
+      res.status(200).json({ error: "", results });
     } catch (e) {
-      // 5: handle errors (server/db issues)
-      res.status(500).json({
-        error: e.toString()
-      });
+      res.status(500).json({ error: e.toString(), results: [] });
     }
   });
 
@@ -76,33 +93,27 @@ module.exports = function(db) {
   // outgoing: results[], error
   // Purpose: return chores completed by the logged-in user
   router.get('/completed', async (req, res) => {
-
-    // get UserID from query params
-    // example: /api/chores/completed?UserID=1
     const userId = parseInt(req.query.UserID);
+    const householdId = parseInt(req.query.HouseholdID);
 
-    // make sure UserID was provided
     if (!userId) {
       return res.status(400).json({ error: "UserID is required" });
     }
 
+    if (!householdId) {
+      return res.status(400).json({ error: "HouseholdID is required" });
+    }
+
     try {
-      // find chores completed by this user
       const results = await db.collection('Chores').find({
+        HouseholdID: householdId,
         CompletedByUserID: userId,
         Status: 'completed'
       }).toArray();
 
-      // send them back to frontend
-      res.status(200).json({
-        error: "",
-        results: results
-      });
-
+      res.status(200).json({ error: "", results });
     } catch (e) {
-      res.status(500).json({
-        error: e.toString()
-      });
+      res.status(500).json({ error: e.toString(), results: [] });
     }
   });
 
