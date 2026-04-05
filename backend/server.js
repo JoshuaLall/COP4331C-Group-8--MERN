@@ -48,6 +48,7 @@ async function startServer() {
     const userRoutes = require('./routes/userRoutes');
     const householdRoutes = require('./routes/householdRoutes');
     const choreRoutes = require('./routes/choreRoutes')(db);
+    console.log("Chore routes loaded");
     const recurringChoreRoutes = require('./routes/recurringChoreRoutes');
 
     //-- API Routes

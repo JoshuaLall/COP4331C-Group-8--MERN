@@ -126,6 +126,48 @@ export default function Dashboard() {
         fetchAssignedChores();
     }, []);
 
+    const handleCreateChore = async () => {
+        const Title = prompt("Enter chore title:");
+        if (!Title) return;
+
+        const Description = prompt("Enter description:") || "";
+        const DueDate = prompt("Enter due date (YYYY-MM-DD):") || "";
+        const Priority = prompt("Enter priority (low, medium, high):") || "medium";
+
+        try {
+            const householdId = localStorage.getItem("householdId");
+            const createdByUserId = localStorage.getItem("userId");
+
+            const res = await fetch("http://localhost:5000/api/chores", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    HouseholdID: Number(householdId),
+                    Title,
+                    Description,
+                    DueDate,
+                    Priority,
+                    CreatedByUserID: Number(createdByUserId)
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error === "") {
+                const openRes = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
+                const openData = await openRes.json();
+                setOpenChores(openData.results);
+                setActiveTab("Open");
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
     // sends a request to backend to claim a chore for current user
     const handleClaim = async (choreId: number) => {
         try {
@@ -326,7 +368,9 @@ export default function Dashboard() {
                             })}
                         </div>
                     </div>
-                    <button className="tb-btn">+ Create Chore</button>
+                    <button className="tb-btn" onClick={handleCreateChore}>
+                    + Create Chore
+                    </button>
                 </div>
 
                 {/* Content */}

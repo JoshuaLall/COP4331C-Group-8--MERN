@@ -6,15 +6,83 @@ module.exports = function(db) {
   // POST /api/chores
   // incoming: HouseholdID, Title, Description, DueDate, *Priority, CreatedByUserID
   // outgoing: ChoreID, error
+  router.post('/', async (req, res) => {
+    try {
+      const {
+        HouseholdID,
+        Title,
+        Description,
+        DueDate,
+        Priority,
+        CreatedByUserID
+      } = req.body;
+
+      if (!HouseholdID || !Title || !Priority || !CreatedByUserID) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const lastChore = await db
+        .collection('Chores')
+        .find({})
+        .sort({ ChoreID: -1 })
+        .limit(1)
+        .toArray();
+
+      const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
+      const now = new Date().toISOString();
+
+      const newChore = {
+        ChoreID: newChoreID,
+        HouseholdID: Number(HouseholdID),
+        Title,
+        Description,
+        Status: 'open',
+        CreatedByUserID: Number(CreatedByUserID),
+        AssignedToUserID: null,
+        DueDate: DueDate || null,
+        Priority: Priority.toLowerCase(),
+        IsRecurring: false,
+        RecurringTemplateID: null,
+        CompletedAt: null,
+        CompletedByUserID: null,
+        CreatedAt: now,
+        UpdatedAt: now,
+        Completed: false
+      };
+
+      await db.collection('Chores').insertOne(newChore);
+
+      res.status(200).json({ ChoreID: newChoreID, error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
 
   // GET /api/chores
   // incoming: HouseholdID
   // outgoing: results[], error
+  router.get('/', async (req, res) => {
+    try {
+      const householdId = parseInt(req.query.HouseholdID);
+
+      if (!householdId) {
+        return res.status(400).json({ error: 'HouseholdID is required', results: [] });
+      }
+
+      const results = await db.collection('Chores').find({
+        HouseholdID: householdId
+      }).toArray();
+
+      res.status(200).json({ error: '', results });
+    } catch (e) {
+      res.status(500).json({ error: e.toString(), results: [] });
+    }
+  });
   
   // GET /api/chores/open
   // incoming: HouseholdID
   // outgoing: results[], error
-
   // returns chores that are NOT assigned yet
   router.get('/open', async (req, res) => {
   const householdId = parseInt(req.query.HouseholdID);
@@ -121,10 +189,63 @@ module.exports = function(db) {
   // GET /api/chores/:id
   // incoming: ChoreID
   // outgoing: chore object, error
+  router.get('/:id', async (req, res) => {
+    try {
+      const ChoreID = parseInt(req.params.id);
+
+      if (!ChoreID) {
+        return res.status(400).json({ error: 'ChoreID is required' });
+      }
+
+      const chore = await db.collection('Chores').findOne({ ChoreID });
+
+      if (!chore) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      res.status(200).json({ error: '', chore });
+
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // PUT /api/chores/:id
   // incoming: Title, Description, DueDate, *Priority
   // outgoing: error
+  router.put('/:id', async (req, res) => {
+    try {
+      const ChoreID = parseInt(req.params.id);
+      const { Title, Description, DueDate, Priority } = req.body;
+
+      if (!ChoreID) {
+        return res.status(400).json({ error: 'ChoreID is required' });
+      }
+
+      const updateFields = {
+        UpdatedAt: new Date().toISOString()
+      };
+
+      if (Title) updateFields.Title = Title;
+      if (Description) updateFields.Description = Description;
+      if (DueDate !== undefined) updateFields.DueDate = DueDate;
+      if (Priority) updateFields.Priority = Priority.toLowerCase();
+
+      const result = await db.collection('Chores').updateOne(
+        { ChoreID },
+        { $set: updateFields }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      res.status(200).json({ error: '' });
+
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // PATCH /api/chores/:id/claim
   // incoming: AssignedToUserID
@@ -165,22 +286,6 @@ module.exports = function(db) {
       // success
       res.status(200).json({ error: '' });
 
-    } catch (e) {
-      res.status(500).json({ error: e.toString() });
-    }
-  });
-
-  // PUT /api/chores/complete
-  router.patch('/:id/complete', async (req, res) => {
-    const { id } = req.params;
-
-    try {
-      await db.collection('Chores').updateOne(
-        { ChoreID: Number(id) },
-        { $set: { Completed: true } }
-      );
-
-      res.status(200).json({ error: "" });
     } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
@@ -227,6 +332,25 @@ module.exports = function(db) {
   // DELETE /api/chores/:id
   // incoming: ChoreID
   // outgoing: error
+  router.delete('/:id', async (req, res) => {
+    try {
+      const ChoreID = parseInt(req.params.id);
+
+      if (!ChoreID) {
+        return res.status(400).json({ error: 'ChoreID is required' });
+      }
+
+      const result = await db.collection('Chores').deleteOne({ ChoreID });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
 
   // *NOTE: Priority should be set here
