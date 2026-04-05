@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; //M: added for navigation
+import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
 const tabs = ["Open", "Assigned", "My Chores", "Completed"] as const;
@@ -8,28 +8,78 @@ type Tab = typeof tabs[number];
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Open");
     const [activeSideItem, setActiveSideItem] = useState("Open Chores");
-    const navigate = useNavigate(); //M: added for navigation
+    const [showModal, setShowModal] = useState(false);
+    const navigate = useNavigate();
 
-    // get the logged-in user's id that we saved during login
     const userId = localStorage.getItem("userId");
+    const householdId = localStorage.getItem("householdId");
 
-    // stores chores assigned to this user (from backend)
     const [myChores, setMyChores] = useState<any[]>([]);
-
-    // stores chores that are still unassigned
     const [openChores, setOpenChores] = useState<any[]>([]);
-
-    // stores completed chores
     const [completedChores, setCompletedChores] = useState<any[]>([]);
-
-    // stores all actively assigned chores in household
     const [assignedChores, setAssignedChores] = useState<any[]>([]);
+    const [housemates, setHousemates] = useState<any[]>([]);
+    const [houseName, setHouseName] = useState("");
+    const [currentUser, setCurrentUser] = useState("");
+
+    const [choreTitle, setChoreTitle] = useState("");
+    const [choreDesc, setChoreDesc] = useState("");
+    const [choreDue, setChoreDue] = useState("");
+    const [chorePriority, setChorePriority] = useState("medium");
+    const [choreAssignees, setChoreAssignees] = useState<number[]>([]);
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [repeatFrequency, setRepeatFrequency] = useState("weekly");
+    const [repeatInterval, setRepeatInterval] = useState("1");
+    const [submitting, setSubmitting] = useState(false);
+
+    const fetchHousemates = async () => {
+        if (!householdId) return;
+        try {
+            const res = await fetch(
+                `http://localhost:5000/api/users/household/${householdId}`
+            );
+            const data = await res.json();
+            if (data.error === "") {
+                const others = data.results.filter(
+                    (u: any) => String(u.UserID) !== String(userId)
+                );
+                setHousemates(others);
+            }
+        } catch (e) {
+            console.log("Failed to fetch housemates:", e);
+        }
+    };
+
+    const fetchCurrentUser = async () => {
+        if (!userId) return;
+        try {
+            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const data = await res.json();
+            if (data.error === "") {
+                setCurrentUser(data.result?.FirstName || data.result?.Login || "");
+            }
+        } catch (e) {
+            console.log("Failed to fetch user:", e);
+        }
+    };
+
+    const fetchHousehold = async () => {
+        if (!householdId) return;
+        try {
+            const res = await fetch(
+                `http://localhost:5000/api/households/${householdId}`
+            );
+            const data = await res.json();
+            if (data.error === "") {
+                setHouseName(data.result?.HouseholdName || "");
+            }
+        } catch (e) {
+            console.log("Failed to fetch household:", e);
+        }
+    };
 
     const refreshAll = async () => {
-        const householdId = localStorage.getItem("householdId");
-
         if (!householdId) return;
-
         try {
             const [openRes, assignedRes, myRes, completedRes] = await Promise.all([
                 fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`),
@@ -37,7 +87,6 @@ export default function Dashboard() {
                 fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`),
                 fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}&HouseholdID=${householdId}`)
             ]);
-
             const openData = await openRes.json();
             const assignedData = await assignedRes.json();
             const myData = await myRes.json();
@@ -47,156 +96,134 @@ export default function Dashboard() {
             if (assignedData.error === "") setAssignedChores(assignedData.results);
             if (myData.error === "") setMyChores(myData.results);
             if (completedData.error === "") setCompletedChores(completedData.results);
-
         } catch (e) {
-            console.log(e);
+            console.log("Failed to refresh chores:", e);
         }
     };
-    
+
     useEffect(() => {
-        if (userId) {
+        if (userId && householdId) {
             refreshAll();
+            fetchHousemates();
+            fetchCurrentUser();
+            fetchHousehold();
         }
-    }, [userId]);
+    }, [userId, householdId]);
 
-    const handleCreateChore = async () => {
-        const Title = prompt("Enter chore title:");
-        if (!Title) return;
-
-        const Description = prompt("Enter description:") || "";
-        const DueDate = prompt("Enter due date (YYYY-MM-DD):") || "";
-        const Priority = prompt("Enter priority (low, medium, high):") || "medium";
-        const isRecurring = prompt("Is this recurring? (yes/no)")?.toLowerCase();
-
-        try {
-            const householdId = localStorage.getItem("householdId");
-            const createdByUserId = localStorage.getItem("userId");
-
-            let res;
-
-            if (isRecurring === "yes") {
-                const RepeatFrequency = prompt("Enter repeat frequency (daily, weekly, monthly):") || "weekly";
-                const RepeatInterval = prompt("Enter repeat interval:") || "1";
-                const assignSelf = prompt("Assign to yourself by default? (yes/no)")?.toLowerCase();
-
-                const defaultUser =
-                    assignSelf === "yes" ? Number(createdByUserId) : null;
-
-                res = await fetch("http://localhost:5000/api/recurring-chores", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        HouseholdID: Number(householdId),
-                        Title,
-                        Description,
-                        DefaultAssignedUserID: defaultUser,
-                        RepeatInterval: Number(RepeatInterval),
-                        NextDueDate: DueDate,
-                        CreatedByUserID: Number(createdByUserId)
-                    })
-                });
-            } else {
-                res = await fetch("http://localhost:5000/api/chores", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        HouseholdID: Number(householdId),
-                        Title,
-                        Description,
-                        DueDate,
-                        Priority,
-                        CreatedByUserID: Number(createdByUserId)
-                    })
-                });
-            }
-
-            const data = await res.json();
-
-            if (data.error === "") {
-                await refreshAll();
-                setActiveTab(isRecurring === "yes" ? "Assigned" : "Open");
-            } else {
-                alert(data.error);
-            }
-        } catch (e) {
-            console.log(e);
-        }
+    const resetModal = () => {
+        setChoreTitle("");
+        setChoreDesc("");
+        setChoreDue("");
+        setChorePriority("medium");
+        setChoreAssignees([]);
+        setIsRecurring(false);
+        setRepeatFrequency("weekly");
+        setRepeatInterval("1");
+        setShowModal(false);
     };
 
-    // sends a request to backend to claim a chore for current user
+    const toggleAssignee = (id: number) => {
+        setChoreAssignees(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleSubmitChore = async () => {
+        if (!choreTitle.trim()) {
+            alert("Please enter a chore title.");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            if (isRecurring) {
+                const res = await fetch("http://localhost:5000/api/recurring-chores", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        HouseholdID: Number(householdId),
+                        Title: choreTitle,
+                        Description: choreDesc,
+                        DefaultAssignedUserID: choreAssignees[0] || null,
+                        RepeatFrequency: repeatFrequency,
+                        RepeatInterval: Number(repeatInterval),
+                        NextDueDate: choreDue || null,
+                        CreatedByUserID: Number(userId)
+                    })
+                });
+                const data = await res.json();
+                if (data.error === "") {
+                    await refreshAll();
+                    resetModal();
+                    setActiveTab("Assigned");
+                } else {
+                    alert(data.error);
+                }
+            } else {
+                const res = await fetch("http://localhost:5000/api/chores", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        HouseholdID: Number(householdId),
+                        Title: choreTitle,
+                        Description: choreDesc,
+                        DueDate: choreDue || null,
+                        Priority: chorePriority,
+                        AssignedToUserID: choreAssignees[0] || null,
+                        CreatedByUserID: Number(userId)
+                    })
+                });
+                const data = await res.json();
+                if (data.error === "") {
+                    await refreshAll();
+                    resetModal();
+                    setActiveTab(choreAssignees.length > 0 ? "Assigned" : "Open");
+                } else {
+                    alert(data.error);
+                }
+            }
+        } catch (e) {
+            console.log("Failed to create chore:", e);
+            alert("Something went wrong. Is the backend running?");
+        }
+        setSubmitting(false);
+    };
+
     const handleClaim = async (choreId: number) => {
         try {
             const res = await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
                 method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    AssignedToUserID: Number(userId)
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ AssignedToUserID: Number(userId) })
             });
-
             const data = await res.json();
-
-            if (data.error === "") {
-                await refreshAll();
-            } else {
-                alert(data.error);
-            }
-        } catch (e) {
-            console.log(e);
-        }
+            if (data.error === "") await refreshAll();
+            else alert(data.error);
+        } catch (e) { console.log(e); }
     };
 
-    // marks a chore as completed for current user
     const handleComplete = async (choreId: number) => {
         try {
             const res = await fetch(`http://localhost:5000/api/chores/${choreId}/complete`, {
                 method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    CompletedByUserID: Number(userId)
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ CompletedByUserID: Number(userId) })
             });
-
             const data = await res.json();
-
-            if (data.error === "") {
-                await refreshAll();
-            } else {
-                alert(data.error);
-            }
-        } catch (e) {
-            console.log(e);
-        }
+            if (data.error === "") await refreshAll();
+            else alert(data.error);
+        } catch (e) { console.log(e); }
     };
 
-
-    // ── TODO: replace with real data from API ──
-    // choose which list to show based on the active tab
     const chores =
-        activeTab === "Open"
-            ? openChores
-            : activeTab === "Assigned"
-            ? assignedChores
-            : activeTab === "My Chores"
-            ? myChores
-            : activeTab === "Completed"
-            ? completedChores
-            : [];
-    const housemates: any[] = [];
-    const houseName = "";
-    const currentUser = "";
+        activeTab === "Open" ? openChores
+            : activeTab === "Assigned" ? assignedChores
+                : activeTab === "My Chores" ? myChores
+                    : completedChores;
+
     const stats = [
         { num: openChores.length, label: "Open chores" },
         { num: myChores.length, label: "My chores" },
-        { num: 0, label: "Overdue" }, // leave for now
+        { num: 0, label: "Overdue" },
         { num: completedChores.length, label: "Done this month" },
     ];
 
@@ -215,14 +242,34 @@ export default function Dashboard() {
         { icon: "⚙️", label: "Settings" },
     ];
 
+    const getAvatarStyle = (name: string) => {
+        const colors = [
+            { bg: "#C9DDED", color: "#185FA5" },
+            { bg: "#FBEAF0", color: "#993556" },
+            { bg: "#EAF3DE", color: "#3B6D11" },
+            { bg: "#FDF3DC", color: "#9A7010" },
+            { bg: "#FAECE7", color: "#8C4A3C" },
+        ];
+        const idx = name.charCodeAt(0) % colors.length;
+        return colors[idx];
+    };
+
+    const getInitials = (mate: any) => {
+        const first = mate.FirstName?.[0] || "";
+        const last = mate.LastName?.[0] || "";
+        return (first + last).toUpperCase() || mate.Username?.[0]?.toUpperCase() || "?";
+    };
+
+    const getDisplayName = (mate: any) =>
+        mate.FirstName
+            ? `${mate.FirstName} ${mate.LastName || ""}`.trim()
+            : mate.Username || "Unknown";
+
     return (
         <div className="dash">
 
-            {/* ── Sidebar ── */}
             <div className="sidebar">
                 <div className="sb-brand">Our<em>Place</em></div>
-
-                {/* TODO: replace with real household name from API */}
                 <div className="sb-house">
                     🏠 {houseName || "Your Household"}
                 </div>
@@ -233,22 +280,9 @@ export default function Dashboard() {
                         className={`sb-item ${activeSideItem === label ? "active" : ""}`}
                         onClick={() => {
                             setActiveSideItem(label);
-
-                            // switch tabs on the dashboard page
-                            if (label === "My Chores") {
-                                setActiveTab("My Chores");
-                                navigate("/dashboard");
-                            }
-
-                            if (label === "Open Chores") {
-                                setActiveTab("Open");
-                                navigate("/dashboard");
-                            }
-
-                            if (label === "Assigned") {
-                                setActiveTab("Assigned");
-                                navigate("/dashboard");
-                            }
+                            if (label === "Open Chores") { setActiveTab("Open"); navigate("/dashboard"); }
+                            if (label === "Assigned") { setActiveTab("Assigned"); navigate("/dashboard"); }
+                            if (label === "My Chores") { setActiveTab("My Chores"); navigate("/dashboard"); }
                         }}
                     >
                         <span>{icon}</span>
@@ -258,34 +292,27 @@ export default function Dashboard() {
 
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>
-
-                    {/* TODO: replace with real housemates from API */}
                     {housemates.length === 0 ? (
                         <div className="sb-empty-mates">No housemates yet</div>
                     ) : (
-                        housemates.map((mate: any) => (
-                            <div className="mate" key={mate.id}>
-                                <div
-                                    className="avatar"
-                                    style={{ background: mate.avatarBg, color: mate.avatarColor }}
-                                >
-                                    {mate.initials}
+                        housemates.map((mate: any) => {
+                            const style = getAvatarStyle(getDisplayName(mate));
+                            return (
+                                <div className="mate" key={mate.UserID}>
+                                    <div className="avatar" style={{ background: style.bg, color: style.color }}>
+                                        {getInitials(mate)}
+                                    </div>
+                                    <span className="mate-name">{getDisplayName(mate)}</span>
                                 </div>
-                                <span className="mate-name">{mate.name}</span>
-                                {mate.online && <div className="dot-on" />}
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>
 
-            {/* ── Main ── */}
             <div className="main">
-
-                {/* Topbar */}
                 <div className="topbar">
                     <div>
-                        {/* TODO: replace with real user name from API */}
                         <div className="topbar-greet">
                             Welcome back{currentUser ? `, ${currentUser}` : ""} 👋
                         </div>
@@ -295,15 +322,12 @@ export default function Dashboard() {
                             })}
                         </div>
                     </div>
-                    <button className="tb-btn" onClick={handleCreateChore}>
-                    + Create Chore
+                    <button className="tb-btn" onClick={() => setShowModal(true)}>
+                        + Create Chore
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="content">
-
-                    {/* Stats — TODO: replace nums with real API data */}
                     <div className="stats-row">
                         {stats.map(({ num, label }) => (
                             <div className="stat" key={label}>
@@ -313,9 +337,8 @@ export default function Dashboard() {
                         ))}
                     </div>
 
-                    {/* Tabs */}
                     <div className="tabs">
-                        {tabs.map((tab) => (
+                        {(["Open", "Assigned", "My Chores", "Completed"] as Tab[]).map((tab) => (
                             <div
                                 key={tab}
                                 className={`tab ${activeTab === tab ? "active" : ""}`}
@@ -326,13 +349,16 @@ export default function Dashboard() {
                         ))}
                     </div>
 
-                    {/* Chore list — TODO: replace with real chores from API */}
                     {chores.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-icon">{emptyMessages[activeTab].icon}</div>
                             <div className="empty-text">{emptyMessages[activeTab].text}</div>
                             {activeTab === "Open" && (
-                                <button className="tb-btn" style={{ marginTop: "16px" }}>
+                                <button
+                                    className="tb-btn"
+                                    style={{ marginTop: "16px" }}
+                                    onClick={() => setShowModal(true)}
+                                >
                                     + Create the first chore
                                 </button>
                             )}
@@ -346,24 +372,21 @@ export default function Dashboard() {
                                 >
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
-                                        <div className="card-meta">{chore.Description}</div>
-
-                                        {chore.DueDate && (
-                                            <div className="card-meta">Due: {chore.DueDate}</div>
+                                        {chore.Description && (
+                                            <div className="card-meta">{chore.Description}</div>
                                         )}
-
+                                        {chore.DueDate && (
+                                            <div className="card-meta">📅 Due: {chore.DueDate}</div>
+                                        )}
                                         {chore.IsRecurring && (
                                             <div className="card-meta">
                                                 🔁{" "}
                                                 {chore.RepeatInterval > 1
-                                                ? `Repeats every ${chore.RepeatInterval} ${
-                                                    chore.RepeatFrequency === "daily"
-                                                        ? "days"
-                                                        : chore.RepeatFrequency === "weekly"
-                                                        ? "weeks"
-                                                        : "months"
+                                                    ? `Every ${chore.RepeatInterval} ${chore.RepeatFrequency === "daily" ? "days"
+                                                        : chore.RepeatFrequency === "weekly" ? "weeks"
+                                                            : "months"
                                                     }`
-                                                : `Repeats ${chore.RepeatFrequency}`}
+                                                    : `${chore.RepeatFrequency}`}
                                             </div>
                                         )}
                                     </div>
@@ -392,9 +415,162 @@ export default function Dashboard() {
                             ))}
                         </div>
                     )}
-
                 </div>
             </div>
+
+            {showModal && (
+                <div className="modal-overlay" onClick={resetModal}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+
+                        <div className="modal-header">
+                            <div className="modal-title">🏡 New Chore</div>
+                            <button className="modal-close" onClick={resetModal}>✕</button>
+                        </div>
+
+                        <div className="modal-body">
+
+                            <label className="modal-lbl">Chore Title *</label>
+                            <input
+                                className="modal-inp"
+                                placeholder="e.g. Take out the trash"
+                                value={choreTitle}
+                                onChange={(e) => setChoreTitle(e.target.value)}
+                            />
+
+                            <label className="modal-lbl">Description</label>
+                            <textarea
+                                className="modal-inp modal-textarea"
+                                placeholder="Any extra details..."
+                                value={choreDesc}
+                                onChange={(e) => setChoreDesc(e.target.value)}
+                            />
+
+                            <div className="modal-row">
+                                <div className="modal-col">
+                                    <label className="modal-lbl">Due Date</label>
+                                    <input
+                                        className="modal-inp"
+                                        type="date"
+                                        value={choreDue}
+                                        onChange={(e) => setChoreDue(e.target.value)}
+                                    />
+                                </div>
+                                <div className="modal-col">
+                                    <label className="modal-lbl">Priority</label>
+                                    <select
+                                        className="modal-inp modal-select"
+                                        value={chorePriority}
+                                        onChange={(e) => setChorePriority(e.target.value)}
+                                    >
+                                        <option value="low">🟢 Low</option>
+                                        <option value="medium">🟡 Medium</option>
+                                        <option value="high">🔴 High</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <label className="modal-lbl">
+                                Assign To{" "}
+                                <span className="modal-lbl-hint">(leave blank for open list)</span>
+                            </label>
+                            {housemates.length === 0 ? (
+                                <div className="modal-no-mates">
+                                    No housemates in this household yet — chore will go to Open list
+                                </div>
+                            ) : (
+                                <div className="modal-mates-row">
+                                    {housemates.map((mate: any) => {
+                                        const style = getAvatarStyle(getDisplayName(mate));
+                                        const selected = choreAssignees.includes(mate.UserID);
+                                        return (
+                                            <div
+                                                key={mate.UserID}
+                                                className={`modal-mate-chip ${selected ? "selected" : ""}`}
+                                                style={selected ? {} : { borderColor: style.bg }}
+                                                onClick={() => toggleAssignee(mate.UserID)}
+                                            >
+                                                <span
+                                                    className="chip-avatar"
+                                                    style={{
+                                                        background: selected ? "rgba(255,255,255,0.25)" : style.bg,
+                                                        color: selected ? "#F2EBD9" : style.color
+                                                    }}
+                                                >
+                                                    {getInitials(mate)}
+                                                </span>
+                                                {getDisplayName(mate)}
+                                                {selected && <span className="chip-check">✓</span>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <div className="modal-toggle-row">
+                                <label className="modal-lbl" style={{ margin: 0 }}>
+                                    Recurring chore?
+                                </label>
+                                <div
+                                    className={`toggle ${isRecurring ? "on" : ""}`}
+                                    onClick={() => setIsRecurring(!isRecurring)}
+                                >
+                                    <div className="toggle-thumb" />
+                                </div>
+                            </div>
+
+                            {isRecurring && (
+                                <div className="modal-recurring">
+                                    <div className="modal-row">
+                                        <div className="modal-col">
+                                            <label className="modal-lbl">Repeat every</label>
+                                            <input
+                                                className="modal-inp"
+                                                type="number"
+                                                min="1"
+                                                value={repeatInterval}
+                                                onChange={(e) => setRepeatInterval(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="modal-col">
+                                            <label className="modal-lbl">Period</label>
+                                            <select
+                                                className="modal-inp modal-select"
+                                                value={repeatFrequency}
+                                                onChange={(e) => setRepeatFrequency(e.target.value)}
+                                            >
+                                                <option value="daily">Day(s)</option>
+                                                <option value="weekly">Week(s)</option>
+                                                <option value="monthly">Month(s)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="modal-recurring-preview">
+                                        🔁 Repeats every {repeatInterval}{" "}
+                                        {repeatFrequency === "daily" ? "day" : repeatFrequency === "weekly" ? "week" : "month"}
+                                        {Number(repeatInterval) > 1 ? "s" : ""}
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="modal-cancel" onClick={resetModal}>
+                                Cancel
+                            </button>
+                            <button
+                                className="modal-submit"
+                                onClick={handleSubmitChore}
+                                disabled={submitting}
+                            >
+                                {submitting ? "Publishing..." : "🏡 Publish Chore"}
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

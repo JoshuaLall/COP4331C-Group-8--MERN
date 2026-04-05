@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-module.exports = function(db) {
+module.exports = function (db) {
 
   // POST /api/chores
   // incoming: HouseholdID, Title, Description, DueDate, *Priority, CreatedByUserID
@@ -14,6 +14,7 @@ module.exports = function(db) {
         Description,
         DueDate,
         Priority,
+        AssignedToUserID,
         CreatedByUserID
       } = req.body;
 
@@ -36,9 +37,9 @@ module.exports = function(db) {
         HouseholdID: Number(HouseholdID),
         Title,
         Description,
-        Status: 'open',
+        Status: AssignedToUserID ? 'assigned' : 'open',
         CreatedByUserID: Number(CreatedByUserID),
-        AssignedToUserID: null,
+        AssignedToUserID: AssignedToUserID ? Number(AssignedToUserID) : null,
         DueDate: DueDate || null,
         Priority: Priority.toLowerCase(),
         IsRecurring: false,
@@ -78,30 +79,30 @@ module.exports = function(db) {
       res.status(500).json({ error: e.toString(), results: [] });
     }
   });
-  
+
   // GET /api/chores/open
   // incoming: HouseholdID
   // outgoing: results[], error
   // returns chores that are NOT assigned yet
   router.get('/open', async (req, res) => {
-  const householdId = parseInt(req.query.HouseholdID);
+    const householdId = parseInt(req.query.HouseholdID);
 
-  if (!householdId) {
-    return res.status(400).json({ error: 'HouseholdID is required' });
-  }
+    if (!householdId) {
+      return res.status(400).json({ error: 'HouseholdID is required' });
+    }
 
-  try {
-    const results = await db.collection('Chores').find({
-      HouseholdID: householdId,
-      Status: 'open',
-      AssignedToUserID: null
-    }).toArray();
+    try {
+      const results = await db.collection('Chores').find({
+        HouseholdID: householdId,
+        Status: 'open',
+        AssignedToUserID: null
+      }).toArray();
 
-    res.status(200).json({ error: "", results });
-  } catch (e) {
-    res.status(500).json({ error: e.toString(), results: [] });
-  }
-});
+      res.status(200).json({ error: "", results });
+    } catch (e) {
+      res.status(500).json({ error: e.toString(), results: [] });
+    }
+  });
 
   // GET /api/chores/assigned
   // incoming: HouseholdID

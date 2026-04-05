@@ -45,8 +45,8 @@ async function startServer() {
 
     //-- API Route Imports
     const authRoutes = require('./routes/authRoutes')(db);
-    const userRoutes = require('./routes/userRoutes');
-    const householdRoutes = require('./routes/householdRoutes');
+    const userRoutes = require('./routes/userRoutes')(db);
+    const householdRoutes = require('./routes/householdRoutes')(db);
     const choreRoutes = require('./routes/choreRoutes')(db);
     console.log("Chore routes loaded");
     const recurringChoreRoutes = require('./routes/recurringChoreRoutes')(db);
