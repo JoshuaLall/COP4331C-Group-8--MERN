@@ -46,8 +46,7 @@ module.exports = function(db) {
         CompletedAt: null,
         CompletedByUserID: null,
         CreatedAt: now,
-        UpdatedAt: now,
-        Completed: false
+        UpdatedAt: now
       };
 
       await db.collection('Chores').insertOne(newChore);
@@ -94,7 +93,8 @@ module.exports = function(db) {
   try {
     const results = await db.collection('Chores').find({
       HouseholdID: householdId,
-      Status: 'open'
+      Status: 'open',
+      AssignedToUserID: null
     }).toArray();
 
     res.status(200).json({ error: "", results });
@@ -269,7 +269,7 @@ module.exports = function(db) {
         { ChoreID: ChoreID },
         {
           $set: {
-            AssignedToUserID: AssignedToUserID,
+            AssignedToUserID: Number(AssignedToUserID),
             Status: 'assigned',
             UpdatedAt: new Date().toISOString()
           }
@@ -297,7 +297,12 @@ module.exports = function(db) {
     try {
       const ChoreID = parseInt(req.params.id);
       const { CompletedByUserID } = req.body;
+
       const chore = await db.collection('Chores').findOne({ ChoreID });
+
+      if (!chore) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
 
       // validate input
       if (!CompletedByUserID) {
@@ -311,7 +316,7 @@ module.exports = function(db) {
           $set: {
             Status: 'completed',
             CompletedByUserID: Number(CompletedByUserID),
-            CompletedAt: new Date(),
+            CompletedAt: new Date().toISOString(),
             UpdatedAt: new Date().toISOString()
           }
         }
@@ -359,11 +364,12 @@ module.exports = function(db) {
             Priority: 'medium',
             IsRecurring: true,
             RecurringTemplateID: template.RecurringTemplateID,
+            RepeatFrequency: template.RepeatFrequency,
+            RepeatInterval: template.RepeatInterval,
             CompletedAt: null,
             CompletedByUserID: null,
             CreatedAt: now,
             UpdatedAt: now,
-            Completed: false
           });
 
           await db.collection('RecurringChores').updateOne(

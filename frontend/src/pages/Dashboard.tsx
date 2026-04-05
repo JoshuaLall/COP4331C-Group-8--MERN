@@ -66,31 +66,59 @@ export default function Dashboard() {
         const Description = prompt("Enter description:") || "";
         const DueDate = prompt("Enter due date (YYYY-MM-DD):") || "";
         const Priority = prompt("Enter priority (low, medium, high):") || "medium";
+        const isRecurring = prompt("Is this recurring? (yes/no)")?.toLowerCase();
 
         try {
             const householdId = localStorage.getItem("householdId");
             const createdByUserId = localStorage.getItem("userId");
 
-            const res = await fetch("http://localhost:5000/api/chores", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    HouseholdID: Number(householdId),
-                    Title,
-                    Description,
-                    DueDate,
-                    Priority,
-                    CreatedByUserID: Number(createdByUserId)
-                })
-            });
+            let res;
+
+            if (isRecurring === "yes") {
+                const RepeatFrequency = prompt("Enter repeat frequency (daily, weekly, monthly):") || "weekly";
+                const RepeatInterval = prompt("Enter repeat interval:") || "1";
+                const assignSelf = prompt("Assign to yourself by default? (yes/no)")?.toLowerCase();
+
+                const defaultUser =
+                    assignSelf === "yes" ? Number(createdByUserId) : null;
+
+                res = await fetch("http://localhost:5000/api/recurring-chores", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        HouseholdID: Number(householdId),
+                        Title,
+                        Description,
+                        DefaultAssignedUserID: defaultUser,
+                        RepeatInterval: Number(RepeatInterval),
+                        NextDueDate: DueDate,
+                        CreatedByUserID: Number(createdByUserId)
+                    })
+                });
+            } else {
+                res = await fetch("http://localhost:5000/api/chores", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        HouseholdID: Number(householdId),
+                        Title,
+                        Description,
+                        DueDate,
+                        Priority,
+                        CreatedByUserID: Number(createdByUserId)
+                    })
+                });
+            }
 
             const data = await res.json();
 
             if (data.error === "") {
                 await refreshAll();
-                setActiveTab("Open");
+                setActiveTab(isRecurring === "yes" ? "Assigned" : "Open");
             } else {
                 alert(data.error);
             }
@@ -314,7 +342,7 @@ export default function Dashboard() {
                             {chores.map((chore: any) => (
                                 <div
                                     className={`card ${chore.overdue ? "overdue" : ""}`}
-                                    key={chore._id}
+                                    key={chore.ChoreID}
                                 >
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
@@ -325,7 +353,18 @@ export default function Dashboard() {
                                         )}
 
                                         {chore.IsRecurring && (
-                                            <div className="card-meta">🔁 Repeats</div>
+                                            <div className="card-meta">
+                                                🔁{" "}
+                                                {chore.RepeatInterval > 1
+                                                ? `Repeats every ${chore.RepeatInterval} ${
+                                                    chore.RepeatFrequency === "daily"
+                                                        ? "days"
+                                                        : chore.RepeatFrequency === "weekly"
+                                                        ? "weeks"
+                                                        : "months"
+                                                    }`
+                                                : `Repeats ${chore.RepeatFrequency}`}
+                                            </div>
                                         )}
                                     </div>
                                     <div className="card-right">

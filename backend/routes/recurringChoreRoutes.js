@@ -77,13 +77,17 @@ module.exports = function(db) {
         AssignedToUserID: DefaultAssignedUserID ? Number(DefaultAssignedUserID) : null,
         DueDate: NextDueDate,
         Priority: 'medium',
+
         IsRecurring: true,
         RecurringTemplateID: newRecurringTemplateID,
+
+        RepeatFrequency: RepeatFrequency,
+        RepeatInterval: Number(RepeatInterval),
+
         CompletedAt: null,
         CompletedByUserID: null,
         CreatedAt: now,
-        UpdatedAt: now,
-        Completed: false
+        UpdatedAt: now
       });
 
       res.status(200).json({ RecurringTemplateID: newRecurringTemplateID, error: '' });
@@ -135,11 +139,12 @@ module.exports = function(db) {
             Priority: 'medium',
             IsRecurring: true,
             RecurringTemplateID: template.RecurringTemplateID,
+            RepeatFrequency: template.RepeatFrequency,
+            RepeatInterval: template.RepeatInterval,
             CompletedAt: null,
             CompletedByUserID: null,
             CreatedAt: now,
             UpdatedAt: now,
-            Completed: false
           };
 
           await db.collection('Chores').insertOne(newChore);
