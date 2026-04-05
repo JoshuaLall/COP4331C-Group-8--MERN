@@ -150,14 +150,14 @@ export default function Dashboard() {
 
                 // if found, add it to My Chores immediately in the UI
                 if (claimedChore) {
-                    setMyChores((prev) => [
-                        ...prev,
-                        {
-                            ...claimedChore,
-                            AssignedToUserID: Number(userId),
-                            Status: "assigned"
-                        }
-                    ]);
+                    const updatedChore = {
+                        ...claimedChore,
+                        AssignedToUserID: Number(userId),
+                        Status: "assigned"
+                    };
+
+                    setMyChores((prev) => [...prev, updatedChore]);
+                    setAssignedChores((prev) => [...prev, updatedChore]);
                 }
             } else {
                 alert(data.error);
@@ -185,6 +185,7 @@ export default function Dashboard() {
             if (data.error === "") {
                 // remove from My Chores
                 setMyChores(myChores.filter((chore: any) => chore.ChoreID !== choreId));
+                setAssignedChores(assignedChores.filter((chore: any) => chore.ChoreID !== choreId));
 
                 // find completed chore
                 const completedChore = myChores.find((chore: any) => chore.ChoreID === choreId);
@@ -224,10 +225,10 @@ export default function Dashboard() {
     const houseName = "";
     const currentUser = "";
     const stats = [
-        { num: 0, label: "Open chores" },
-        { num: 0, label: "Mine today" },
-        { num: 0, label: "Overdue" },
-        { num: 0, label: "Done this month" },
+        { num: openChores.length, label: "Open chores" },
+        { num: myChores.length, label: "My chores" },
+        { num: 0, label: "Overdue" }, // leave for now
+        { num: completedChores.length, label: "Done this month" },
     ];
 
     const emptyMessages: Record<Tab, { icon: string; text: string }> = {

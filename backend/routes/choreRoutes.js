@@ -170,9 +170,21 @@ module.exports = function(db) {
     }
   });
 
-  // PATCH /api/chores/:id/claim
-  // incoming: UserID
-  // outgoing: error
+  // PUT /api/chores/complete
+  router.patch('/:id/complete', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      await db.collection('Chores').updateOne(
+        { ChoreID: Number(id) },
+        { $set: { Completed: true } }
+      );
+
+      res.status(200).json({ error: "" });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // PATCH /api/chores/:id/complete
   // incoming: CompletedByUserID
