@@ -1,12 +1,31 @@
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import "../CSS/Login.css";
 
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
 
-    const handleLogin = () => {
-        console.log("Login:", email, password);
+    const handleLogin = async () => {
+        const res = await fetch("http://localhost:5000/api/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Login: email,
+                Password: password
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.error === "") {
+            navigate("/dashboard");
+        } else {
+            alert(data.error);
+        }
     };
 
     return (
