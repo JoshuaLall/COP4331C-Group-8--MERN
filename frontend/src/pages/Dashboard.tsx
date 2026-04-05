@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; //M: added for navigation
 import "../CSS/Dashboard.css";
 
@@ -10,8 +10,113 @@ export default function Dashboard() {
     const [activeSideItem, setActiveSideItem] = useState("Open Chores");
     const navigate = useNavigate(); //M: added for navigation
 
+    // get the logged-in user's id that we saved during login
+    const userId = localStorage.getItem("userId");
+
+    // stores chores assigned to this user (from backend)
+    const [myChores, setMyChores] = useState<any[]>([]);
+
+    // stores chores that are still unassigned
+    const [openChores, setOpenChores] = useState<any[]>([]);
+
+
+    // runs once when the dashboard first loads
+    // calls the backend to get chores assigned to current user
+    useEffect(() => {
+        const fetchMyChores = async () => {
+            // if no user is logged in, stop here
+            if (!userId) {
+                console.log("No userId found");
+                return;
+            }
+            try {
+                const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}`);
+                const data = await res.json();
+
+                // if backend sends no error, save the chores into state
+                if (data.error === "") {
+                    setMyChores(data.results);
+                } else {
+                    console.log(data.error);
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+
+        fetchMyChores();
+    }, [userId]);
+
+    // gets unassigned chores for the Open tab
+    useEffect(() => {
+        const fetchOpenChores = async () => {
+            try {
+                const res = await fetch("http://localhost:5000/api/chores/open");
+                const data = await res.json();
+
+                if (data.error === "") {
+                    setOpenChores(data.results);
+                } else {
+                    console.log(data.error);
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+
+        fetchOpenChores();
+    }, []);
+
+    // sends a request to backend to claim a chore for current user
+    const handleClaim = async (choreId: number) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    AssignedToUserID: Number(userId)
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error === "") {
+                // remove the chore from Open immediately in the UI
+                setOpenChores(openChores.filter((chore: any) => chore.ChoreID !== choreId));
+
+                // find the claimed chore from the old open list
+                const claimedChore = openChores.find((chore: any) => chore.ChoreID === choreId);
+
+                // if found, add it to My Chores immediately in the UI
+                if (claimedChore) {
+                    setMyChores((prev) => [
+                        ...prev,
+                        {
+                            ...claimedChore,
+                            AssignedToUserID: Number(userId),
+                            Status: "assigned"
+                        }
+                    ]);
+                }
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
+
     // ── TODO: replace with real data from API ──
-    const chores: any[] = [];
+    // choose which list to show based on the active tab
+    const chores =
+        activeTab === "Open"
+            ? openChores
+            : activeTab === "My Chores"
+            ? myChores
+            : [];
     const housemates: any[] = [];
     const houseName = "";
     const currentUser = "";
@@ -55,14 +160,23 @@ export default function Dashboard() {
                         className={`sb-item ${activeSideItem === label ? "active" : ""}`}
                         onClick={() => {
                             setActiveSideItem(label);
+
+                            // switch tabs on the dashboard page
                             if (label === "My Chores") {
-                                navigate("/my-chores");
-                            }
-                            if (label === "Open Chores") {
+                                setActiveTab("My Chores");
                                 navigate("/dashboard");
                             }
-                        }
-                    }
+
+                            if (label === "Open Chores") {
+                                setActiveTab("Open");
+                                navigate("/dashboard");
+                            }
+
+                            if (label === "Assigned") {
+                                setActiveTab("Assigned");
+                                navigate("/dashboard");
+                            }
+                        }}
                     >
                         <span>{icon}</span>
                         {label}
@@ -156,15 +270,20 @@ export default function Dashboard() {
                                     key={chore._id}
                                 >
                                     <div className="card-body">
-                                        <div className="card-title">{chore.title}</div>
-                                        <div className="card-meta">{chore.description}</div>
+                                        <div className="card-title">{chore.Title}</div>
+                                        <div className="card-meta">{chore.Description}</div>
                                     </div>
                                     <div className="card-right">
-                                        <span className={`priority p-${chore.priority?.toLowerCase()}`}>
-                                            {chore.priority}
+                                        <span className={`priority p-${chore.Priority?.toLowerCase()}`}>
+                                            {chore.Priority}
                                         </span>
                                         {activeTab === "Open" && (
-                                            <button className="claim-btn">Claim</button>
+                                            <button
+                                                className="claim-btn"
+                                                onClick={() => handleClaim(chore.ChoreID)}
+                                            >
+                                                Claim
+                                            </button>
                                         )}
                                         {activeTab === "My Chores" && (
                                             <button className="done-btn">Mark done</button>

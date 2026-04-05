@@ -22,6 +22,9 @@ export default function Login() {
         const data = await res.json();
 
         if (data.error === "") {
+            // save the logged-in user's id so other pages can use it
+            localStorage.setItem("userId", data.UserID);
+
             navigate("/dashboard");
         } else {
             alert(data.error);
