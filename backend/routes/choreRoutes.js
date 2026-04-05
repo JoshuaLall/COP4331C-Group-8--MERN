@@ -94,8 +94,7 @@ module.exports = function(db) {
   try {
     const results = await db.collection('Chores').find({
       HouseholdID: householdId,
-      AssignedToUserID: null,
-      Status: { $ne: 'completed' }
+      Status: 'open'
     }).toArray();
 
     res.status(200).json({ error: "", results });
@@ -117,8 +116,7 @@ module.exports = function(db) {
     try {
       const results = await db.collection('Chores').find({
         HouseholdID: householdId,
-        AssignedToUserID: { $ne: null },
-        Status: { $ne: 'completed' }
+        Status: 'assigned'
       }).toArray();
 
       res.status(200).json({ error: '', results });
@@ -147,7 +145,7 @@ module.exports = function(db) {
       const results = await db.collection('Chores').find({
         HouseholdID: householdId,
         AssignedToUserID: userId,
-        Status: { $ne: 'completed' }
+        Status: 'assigned'
       }).toArray();
 
       res.status(200).json({ error: "", results });
@@ -299,6 +297,7 @@ module.exports = function(db) {
     try {
       const ChoreID = parseInt(req.params.id);
       const { CompletedByUserID } = req.body;
+      const chore = await db.collection('Chores').findOne({ ChoreID });
 
       // validate input
       if (!CompletedByUserID) {
@@ -311,8 +310,8 @@ module.exports = function(db) {
         {
           $set: {
             Status: 'completed',
-            CompletedByUserID,
-            CompletedAt: new Date().toISOString(),
+            CompletedByUserID: Number(CompletedByUserID),
+            CompletedAt: new Date(),
             UpdatedAt: new Date().toISOString()
           }
         }
@@ -320,6 +319,63 @@ module.exports = function(db) {
 
       if (result.matchedCount === 0) {
         return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      if (chore && chore.IsRecurring && chore.RecurringTemplateID) {
+        const template = await db.collection('RecurringChores').findOne({
+          RecurringTemplateID: chore.RecurringTemplateID
+        });
+
+        if (template && template.IsActive) {
+          const updatedNextDue = new Date(template.NextDueDate);
+
+          if (template.RepeatFrequency === 'daily') {
+            updatedNextDue.setDate(updatedNextDue.getDate() + Number(template.RepeatInterval));
+          } else if (template.RepeatFrequency === 'weekly') {
+            updatedNextDue.setDate(updatedNextDue.getDate() + 7 * Number(template.RepeatInterval));
+          } else if (template.RepeatFrequency === 'monthly') {
+            updatedNextDue.setMonth(updatedNextDue.getMonth() + Number(template.RepeatInterval));
+          }
+
+          const lastChore = await db.collection('Chores')
+            .find({})
+            .sort({ ChoreID: -1 })
+            .limit(1)
+            .toArray();
+
+          const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
+          const now = new Date().toISOString();
+          const nextDueDate = updatedNextDue.toISOString().split('T')[0];
+
+          await db.collection('Chores').insertOne({
+            ChoreID: newChoreID,
+            HouseholdID: template.HouseholdID,
+            Title: template.Title,
+            Description: template.Description || "",
+            Status: template.DefaultAssignedUserID ? 'assigned' : 'open',
+            CreatedByUserID: template.CreatedByUserID,
+            AssignedToUserID: template.DefaultAssignedUserID || null,
+            DueDate: nextDueDate,
+            Priority: 'medium',
+            IsRecurring: true,
+            RecurringTemplateID: template.RecurringTemplateID,
+            CompletedAt: null,
+            CompletedByUserID: null,
+            CreatedAt: now,
+            UpdatedAt: now,
+            Completed: false
+          });
+
+          await db.collection('RecurringChores').updateOne(
+            { RecurringTemplateID: template.RecurringTemplateID },
+            {
+              $set: {
+                NextDueDate: nextDueDate,
+                UpdatedAt: now
+              }
+            }
+          );
+        }
       }
 
       res.status(200).json({ error: '' });

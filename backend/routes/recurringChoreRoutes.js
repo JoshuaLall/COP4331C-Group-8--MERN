@@ -6,18 +6,266 @@ module.exports = function(db) {
   // POST /api/recurring-chores
   // incoming: HouseholdID, Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, CreatedByUserID
   // outgoing: RecurringTemplateID, error
+  router.post('/', async (req, res) => {
+    try {
+      const {
+        HouseholdID,
+        Title,
+        Description,
+        DefaultAssignedUserID,
+        RepeatFrequency,
+        RepeatInterval,
+        NextDueDate,
+        CreatedByUserID
+      } = req.body;
+
+      if (
+        !HouseholdID ||
+        !Title ||
+        !RepeatFrequency ||
+        !RepeatInterval ||
+        !NextDueDate ||
+        !CreatedByUserID
+      ) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const lastTemplate = await db
+        .collection('RecurringChores')
+        .find({})
+        .sort({ RecurringTemplateID: -1 })
+        .limit(1)
+        .toArray();
+
+      const newRecurringTemplateID =
+        lastTemplate.length > 0 ? lastTemplate[0].RecurringTemplateID + 1 : 1;
+
+      const now = new Date().toISOString();
+
+      const newTemplate = {
+        RecurringTemplateID: newRecurringTemplateID,
+        HouseholdID: Number(HouseholdID),
+        Title,
+        Description: Description || "",
+        DefaultAssignedUserID: DefaultAssignedUserID ? Number(DefaultAssignedUserID) : null,
+        RepeatFrequency,
+        RepeatInterval: Number(RepeatInterval),
+        NextDueDate,
+        CreatedByUserID: Number(CreatedByUserID),
+        IsActive: true,
+        CreatedAt: now,
+        UpdatedAt: now
+      };
+
+      await db.collection('RecurringChores').insertOne(newTemplate);
+
+      const lastChore = await db.collection('Chores')
+        .find({})
+        .sort({ ChoreID: -1 })
+        .limit(1)
+        .toArray();
+
+      const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
+
+      await db.collection('Chores').insertOne({
+        ChoreID: newChoreID,
+        HouseholdID: Number(HouseholdID),
+        Title,
+        Description: Description || "",
+        Status: DefaultAssignedUserID ? 'assigned' : 'open',
+        CreatedByUserID: Number(CreatedByUserID),
+        AssignedToUserID: DefaultAssignedUserID ? Number(DefaultAssignedUserID) : null,
+        DueDate: NextDueDate,
+        Priority: 'medium',
+        IsRecurring: true,
+        RecurringTemplateID: newRecurringTemplateID,
+        CompletedAt: null,
+        CompletedByUserID: null,
+        CreatedAt: now,
+        UpdatedAt: now,
+        Completed: false
+      });
+
+      res.status(200).json({ RecurringTemplateID: newRecurringTemplateID, error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  router.post('/generate', async (req, res) => {
+    try {
+      const today = new Date();
+      const templates = await db.collection('RecurringChores').find({
+        IsActive: true
+      }).toArray();
+
+      let generatedCount = 0;
+
+      for (const template of templates) {
+        const nextDue = new Date(template.NextDueDate);
+
+        if (nextDue <= today) {
+          const existingChore = await db.collection('Chores').findOne({
+            RecurringTemplateID: template.RecurringTemplateID,
+            DueDate: template.NextDueDate
+          });
+
+          if (existingChore) {
+            continue;
+          }
+
+          const lastChore = await db.collection('Chores')
+            .find({})
+            .sort({ ChoreID: -1 })
+            .limit(1)
+            .toArray();
+
+          const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
+          const now = new Date().toISOString();
+
+          const newChore = {
+            ChoreID: newChoreID,
+            HouseholdID: template.HouseholdID,
+            Title: template.Title,
+            Description: template.Description || "",
+            Status: template.DefaultAssignedUserID ? 'assigned' : 'open',
+            CreatedByUserID: template.CreatedByUserID,
+            AssignedToUserID: template.DefaultAssignedUserID || null,
+            DueDate: template.NextDueDate,
+            Priority: 'medium',
+            IsRecurring: true,
+            RecurringTemplateID: template.RecurringTemplateID,
+            CompletedAt: null,
+            CompletedByUserID: null,
+            CreatedAt: now,
+            UpdatedAt: now,
+            Completed: false
+          };
+
+          await db.collection('Chores').insertOne(newChore);
+
+          const updatedNextDue = new Date(template.NextDueDate);
+
+          if (template.RepeatFrequency === 'daily') {
+            updatedNextDue.setDate(updatedNextDue.getDate() + Number(template.RepeatInterval));
+          } else if (template.RepeatFrequency === 'weekly') {
+            updatedNextDue.setDate(updatedNextDue.getDate() + 7 * Number(template.RepeatInterval));
+          } else if (template.RepeatFrequency === 'monthly') {
+            updatedNextDue.setMonth(updatedNextDue.getMonth() + Number(template.RepeatInterval));
+          }
+
+          await db.collection('RecurringChores').updateOne(
+            { RecurringTemplateID: template.RecurringTemplateID },
+            {
+              $set: {
+                NextDueDate: updatedNextDue.toISOString().split('T')[0],
+                UpdatedAt: now
+              }
+            }
+          );
+
+          generatedCount++;
+        }
+      }
+
+      res.status(200).json({ error: '', generatedCount });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // GET /api/recurring-chores
   // incoming: HouseholdID
   // outgoing: results[], error
+  router.get('/', async (req, res) => {
+    try {
+      const householdId = parseInt(req.query.HouseholdID);
+
+      if (!householdId) {
+        return res.status(400).json({ error: 'HouseholdID is required', results: [] });
+      }
+
+      const results = await db.collection('RecurringChores').find({
+        HouseholdID: householdId
+      }).toArray();
+
+      res.status(200).json({ error: '', results });
+    } catch (e) {
+      res.status(500).json({ error: e.toString(), results: [] });
+    }
+  });
 
   // PUT /api/recurring-chores/:id
   // incoming: Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, IsActive
   // outgoing: error
+  router.put('/:id', async (req, res) => {
+    try {
+      const RecurringTemplateID = parseInt(req.params.id);
+      const {
+        Title,
+        Description,
+        DefaultAssignedUserID,
+        RepeatFrequency,
+        RepeatInterval,
+        NextDueDate,
+        IsActive
+      } = req.body || {};
+
+      if (!RecurringTemplateID) {
+        return res.status(400).json({ error: 'RecurringTemplateID is required' });
+      }
+
+      const updateFields = {
+        UpdatedAt: new Date().toISOString()
+      };
+
+      if (Title) updateFields.Title = Title;
+      if (Description !== undefined) updateFields.Description = Description;
+      if (DefaultAssignedUserID !== undefined) {
+        updateFields.DefaultAssignedUserID = DefaultAssignedUserID === null ? null : Number(DefaultAssignedUserID);
+      }
+      if (RepeatFrequency) updateFields.RepeatFrequency = RepeatFrequency;
+      if (RepeatInterval !== undefined) updateFields.RepeatInterval = Number(RepeatInterval);
+      if (NextDueDate !== undefined) updateFields.NextDueDate = NextDueDate;
+      if (IsActive !== undefined) updateFields.IsActive = IsActive;
+
+      const result = await db.collection('RecurringChores').updateOne(
+        { RecurringTemplateID },
+        { $set: updateFields }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Recurring chore not found' });
+      }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // DELETE /api/recurring-chores/:id
   // incoming: RecurringTemplateID
   // outgoing: error
+  router.delete('/:id', async (req, res) => {
+    try {
+      const RecurringTemplateID = parseInt(req.params.id);
+
+      if (!RecurringTemplateID) {
+        return res.status(400).json({ error: 'RecurringTemplateID is required' });
+      }
+
+      const result = await db.collection('RecurringChores').deleteOne({ RecurringTemplateID });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Recurring chore not found' });
+      }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   //NOTE: IsActive should be set here
 

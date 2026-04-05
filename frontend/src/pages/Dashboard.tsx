@@ -25,106 +25,39 @@ export default function Dashboard() {
     // stores all actively assigned chores in household
     const [assignedChores, setAssignedChores] = useState<any[]>([]);
 
-    // runs once when the dashboard first loads
-    // calls the backend to get chores assigned to current user
+    const refreshAll = async () => {
+        const householdId = localStorage.getItem("householdId");
+
+        if (!householdId) return;
+
+        try {
+            const [openRes, assignedRes, myRes, completedRes] = await Promise.all([
+                fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`),
+                fetch(`http://localhost:5000/api/chores/assigned?HouseholdID=${householdId}`),
+                fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`),
+                fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}&HouseholdID=${householdId}`)
+            ]);
+
+            const openData = await openRes.json();
+            const assignedData = await assignedRes.json();
+            const myData = await myRes.json();
+            const completedData = await completedRes.json();
+
+            if (openData.error === "") setOpenChores(openData.results);
+            if (assignedData.error === "") setAssignedChores(assignedData.results);
+            if (myData.error === "") setMyChores(myData.results);
+            if (completedData.error === "") setCompletedChores(completedData.results);
+
+        } catch (e) {
+            console.log(e);
+        }
+    };
+    
     useEffect(() => {
-        const fetchMyChores = async () => {
-            // if no user is logged in, stop here
-            if (!userId) {
-                console.log("No userId found");
-                return;
-            }
-            try {
-                const householdId = localStorage.getItem("householdId");
-                const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`);
-                const data = await res.json();
-
-                // if backend sends no error, save the chores into state
-                if (data.error === "") {
-                    setMyChores(data.results);
-                } else {
-                    console.log(data.error);
-                }
-            } catch (e) {
-                console.log(e);
-            }
-        };
-
-        fetchMyChores();
+        if (userId) {
+            refreshAll();
+        }
     }, [userId]);
-
-    // gets unassigned chores for the Open tab
-    useEffect(() => {
-        const fetchOpenChores = async () => {
-            try {
-                const householdId = localStorage.getItem("householdId");
-                const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
-                const data = await res.json();
-
-                if (data.error === "") {
-                    setOpenChores(data.results);
-                } else {
-                    console.log(data.error);
-                }
-            } catch (e) {
-                console.log(e);
-            }
-        };
-
-        fetchOpenChores();
-    }, []);
-
-    // gets completed chores for the logged-in user
-    useEffect(() => {
-        const fetchCompletedChores = async () => {
-            if (!userId) {
-                console.log("No userId found");
-                return;
-            }
-
-            try {
-                const householdId = localStorage.getItem("householdId");
-                const res = await fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}&HouseholdID=${householdId}`);
-                const data = await res.json();
-
-                if (data.error === "") {
-                    setCompletedChores(data.results);
-                } else {
-                    console.log(data.error);
-                }
-            } catch (e) {
-                console.log(e);
-            }
-        };
-
-        fetchCompletedChores();
-    }, [userId]);
-
-    useEffect(() => {
-        const fetchAssignedChores = async () => {
-            const householdId = localStorage.getItem("householdId");
-
-            if (!householdId) {
-                console.log("No householdId found");
-                return;
-            }
-
-            try {
-                const res = await fetch(`http://localhost:5000/api/chores/assigned?HouseholdID=${householdId}`);
-                const data = await res.json();
-
-                if (data.error === "") {
-                    setAssignedChores(data.results);
-                } else {
-                    console.log(data.error);
-                }
-            } catch (e) {
-                console.log(e);
-            }
-        };
-
-        fetchAssignedChores();
-    }, []);
 
     const handleCreateChore = async () => {
         const Title = prompt("Enter chore title:");
@@ -156,9 +89,7 @@ export default function Dashboard() {
             const data = await res.json();
 
             if (data.error === "") {
-                const openRes = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
-                const openData = await openRes.json();
-                setOpenChores(openData.results);
+                await refreshAll();
                 setActiveTab("Open");
             } else {
                 alert(data.error);
@@ -184,23 +115,7 @@ export default function Dashboard() {
             const data = await res.json();
 
             if (data.error === "") {
-                // remove the chore from Open immediately in the UI
-                setOpenChores(openChores.filter((chore: any) => chore.ChoreID !== choreId));
-
-                // find the claimed chore from the old open list
-                const claimedChore = openChores.find((chore: any) => chore.ChoreID === choreId);
-
-                // if found, add it to My Chores immediately in the UI
-                if (claimedChore) {
-                    const updatedChore = {
-                        ...claimedChore,
-                        AssignedToUserID: Number(userId),
-                        Status: "assigned"
-                    };
-
-                    setMyChores((prev) => [...prev, updatedChore]);
-                    setAssignedChores((prev) => [...prev, updatedChore]);
-                }
+                await refreshAll();
             } else {
                 alert(data.error);
             }
@@ -225,23 +140,7 @@ export default function Dashboard() {
             const data = await res.json();
 
             if (data.error === "") {
-                // remove from My Chores
-                setMyChores(myChores.filter((chore: any) => chore.ChoreID !== choreId));
-                setAssignedChores(assignedChores.filter((chore: any) => chore.ChoreID !== choreId));
-
-                // find completed chore
-                const completedChore = myChores.find((chore: any) => chore.ChoreID === choreId);
-
-                // add to Completed
-                if (completedChore) {
-                    setCompletedChores([
-                        ...completedChores,
-                        {
-                            ...completedChore,
-                            Status: "completed"
-                        }
-                    ]);
-                }
+                await refreshAll();
             } else {
                 alert(data.error);
             }
@@ -420,6 +319,14 @@ export default function Dashboard() {
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
                                         <div className="card-meta">{chore.Description}</div>
+
+                                        {chore.DueDate && (
+                                            <div className="card-meta">Due: {chore.DueDate}</div>
+                                        )}
+
+                                        {chore.IsRecurring && (
+                                            <div className="card-meta">🔁 Repeats</div>
+                                        )}
                                     </div>
                                     <div className="card-right">
                                         <span className={`priority p-${chore.Priority?.toLowerCase()}`}>

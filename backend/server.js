@@ -49,7 +49,7 @@ async function startServer() {
     const householdRoutes = require('./routes/householdRoutes');
     const choreRoutes = require('./routes/choreRoutes')(db);
     console.log("Chore routes loaded");
-    const recurringChoreRoutes = require('./routes/recurringChoreRoutes');
+    const recurringChoreRoutes = require('./routes/recurringChoreRoutes')(db);
 
     //-- API Routes
     app.use('/api/auth', authRoutes);
