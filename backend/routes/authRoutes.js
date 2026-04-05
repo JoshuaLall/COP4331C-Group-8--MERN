@@ -1,35 +1,49 @@
 const express = require('express');
 const router = express.Router();
 
-module.exports = function(db) {
+module.exports = function (db) {
+
+  const getNextUserId = async () => {
+    const lastUser = await db
+      .collection('Users')
+      .find({ UserID: { $exists: true } })
+      .sort({ UserID: -1 })
+      .limit(1)
+      .toArray();
+
+    return lastUser.length > 0 ? Number(lastUser[0].UserID) + 1 : 1;
+  };
 
   // POST /api/auth/register
   // incoming: FirstName, LastName, Login, Password, Email
   // outgoing: UserID, error
-  router.post('/register', async(req, res) => {
-    //console.log('register hit');
-    //console.log(req.body);
-
+  router.post('/register', async (req, res) => {
     var error = '';
     try {
-      const{ FirstName, LastName, Login, Password, Email } = req.body;
-      
-      // check if Login or Email already exists
-      //console.log('register hit');
-      const existing = await db.collection('Users').findOne({ $or:[{ Login }, { Email }] });
-      //console.log('findOne done');
+      const { FirstName, LastName, Login, Username, Password, Email } = req.body;
+      const normalizedLogin = Login || Username;
+
+      if (!FirstName || !normalizedLogin || !Password || !Email) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const existing = await db.collection('Users').findOne({
+        $or: [{ Login: normalizedLogin }, { Email: Email.toLowerCase() }]
+      });
       if (existing) return res.status(400).json({ error: 'Login or Email already in use' });
+
+      const nextUserId = await getNextUserId();
 
       // create new user
       const newUser = {
-        //TODO: add UserID
-        FirstName, 
-        LastName, 
-        Login, 
-        Password, 
-        Email: Email.toLowerCase(), 
-        Verified: false, 
-        VerifyToken: '', 
+        UserID: nextUserId,
+        FirstName,
+        LastName: LastName || '',
+        Login: normalizedLogin,
+        Password,
+        Email: Email.toLowerCase(),
+        Verified: false,
+        VerifyToken: '',
         ResetToken: '',
         ResetExpires: null,
         HouseholdID: null,
@@ -38,9 +52,9 @@ module.exports = function(db) {
       };
 
       const result = await db.collection('Users').insertOne(newUser);
-      res.status(200).json({ UserID: result.insertedId, error: '' });
+      res.status(200).json({ UserID: nextUserId, MongoID: result.insertedId, error: '' });
 
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -48,10 +62,10 @@ module.exports = function(db) {
   // POST /api/auth/login
   // incoming: Login, Password
   // outgoing: UserID, FirstName, LastName, error
-  router.post('/login', async(req, res) => {
+  router.post('/login', async (req, res) => {
     var error = '';
     try {
-      const{ Login, Password } = req.body;
+      const { Login, Password } = req.body;
 
       // check if user exists
       const user = await db.collection('Users').findOne({ Login, Password });
@@ -61,11 +75,11 @@ module.exports = function(db) {
         UserID: user.UserID,
         FirstName: user.FirstName,
         LastName: user.LastName,
-        HouseholdID: user.HouseholdId,
+        HouseholdID: user.HouseholdID,
         error: ''
       });
 
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -73,10 +87,10 @@ module.exports = function(db) {
   // POST /api/auth/verify-email
   // incoming: VerifyToken
   // outgoing: error
-  router.post('/verify-email', async(req, res) => {
+  router.post('/verify-email', async (req, res) => {
     var error = '';
     try {
-      const{ VerifyToken } = req.body;
+      const { VerifyToken } = req.body;
 
       // check if token matches
       const user = await db.collection('Users').findOne({ VerifyToken });
@@ -85,11 +99,11 @@ module.exports = function(db) {
       // set user as verified
       await db.collection('Users').updateOne(
         { VerifyToken },
-        { $set: {Verified: true, VerifyToken: '' } }
+        { $set: { Verified: true, VerifyToken: '' } }
       );
 
       res.status(200).json({ error: '' });
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -97,10 +111,10 @@ module.exports = function(db) {
   // POST api/auth/forgot-password
   // incoming: Email
   // outgoing: error
-  router.post('/forgot-password', async(req, res) => {
+  router.post('/forgot-password', async (req, res) => {
     var error = '';
     try {
-      const{ Email } = req.body;
+      const { Email } = req.body;
 
       // check if email matches
       const email = await db.collection('Users').findOne({ Email });
@@ -113,11 +127,11 @@ module.exports = function(db) {
       // update user
       await db.collection('Users').updateOne(
         { Email },
-        { $set: {ResetToken, ResetExpires } }
+        { $set: { ResetToken, ResetExpires } }
       );
 
       res.status(200).json({ error: '' });
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -125,10 +139,10 @@ module.exports = function(db) {
   // POST api/auth/reset-password
   // incoming: ResetToken, Password
   // outgoing: error
-  router.post('/reset-password', async(req, res) => {
+  router.post('/reset-password', async (req, res) => {
     var error = '';
     try {
-      const{ ResetToken, Password } = req.body;
+      const { ResetToken, Password } = req.body;
 
       // check if reset tken matches
       const user = await db.collection('Users').findOne({ ResetToken });
@@ -136,7 +150,7 @@ module.exports = function(db) {
 
       // check reset token exp has not passed
       if (new Date() > new Date(user.ResetExpires)) return res.status(400).json({ error: 'Reset token has expired' });
-      
+
       // set new password and clear reset token and exp
       await db.collection('Users').updateOne(
         { ResetToken },
@@ -144,7 +158,7 @@ module.exports = function(db) {
       );
 
       res.status(200).json({ error: '' });
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -152,25 +166,25 @@ module.exports = function(db) {
   // GET api/auth/me
   // incoming: UserID
   // outgoing: UserID, FirstName, LastName, Email, HouseholdID, error
-  router.get('/me', async(req, res) => {
+  router.get('/me', async (req, res) => {
     var error = '';
     try {
-      const{ UserID } = req.query;
-      
+      const { UserID } = req.query;
+
       // check if user exists
-      const user = await db.collection('Users').findOne({ _id: UserID });
+      const user = await db.collection('Users').findOne({ UserID: Number(UserID) });
       if (!user) return res.status(400).json({ error: 'User not found' });
 
 
       res.status(200).json({
-        UserID: user._id,
+        UserID: user.UserID,
         FirstName: user.FirstName,
         LastName: user.LastName,
         Email: user.Email,
-        HouseholdID: user.HouseholdId,
+        HouseholdID: user.HouseholdID,
         error: ''
       });
-    } catch(e) {
+    } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
