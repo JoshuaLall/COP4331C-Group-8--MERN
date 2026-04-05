@@ -52,7 +52,8 @@ module.exports = function(db) {
       // 3: query MongoDB
       // find all chores where AssignedToUserID matches this user
       const results = await db.collection('Chores').find({
-        AssignedToUserID: userId
+        AssignedToUserID: userId,
+        Status: { $ne: 'completed' }
       }).toArray();
 
       // 4: send results back to frontend
@@ -73,6 +74,38 @@ module.exports = function(db) {
   // GET /api/chores/completed
   // incoming: HouseholdID
   // outgoing: results[], error
+  // Purpose: return chores completed by the logged-in user
+  router.get('/completed', async (req, res) => {
+
+    // get UserID from query params
+    // example: /api/chores/completed?UserID=1
+    const userId = parseInt(req.query.UserID);
+
+    // make sure UserID was provided
+    if (!userId) {
+      return res.status(400).json({ error: "UserID is required" });
+    }
+
+    try {
+      // find chores completed by this user
+      const results = await db.collection('Chores').find({
+        CompletedByUserID: userId,
+        Status: 'completed'
+      }).toArray();
+
+      // send them back to frontend
+      res.status(200).json({
+        error: "",
+        results: results
+      });
+
+    } catch (e) {
+      res.status(500).json({
+        error: e.toString()
+      });
+    }
+  });
+
 
   // GET /api/chores/:id
   // incoming: ChoreID
@@ -85,7 +118,6 @@ module.exports = function(db) {
   // PATCH /api/chores/:id/claim
   // incoming: AssignedToUserID
   // outgoing: error
-
   // Purpose: assign an open chore to a specific user
   router.patch('/:id/claim', async (req, res) => {
     try {
@@ -134,6 +166,40 @@ module.exports = function(db) {
   // PATCH /api/chores/:id/complete
   // incoming: CompletedByUserID
   // outgoing: error
+  // Purpose: mark a chore as completed
+  router.patch('/:id/complete', async (req, res) => {
+    try {
+      const ChoreID = parseInt(req.params.id);
+      const { CompletedByUserID } = req.body;
+
+      // validate input
+      if (!CompletedByUserID) {
+        return res.status(400).json({ error: 'CompletedByUserID is required' });
+      }
+
+      // update chore
+      const result = await db.collection('Chores').updateOne(
+        { ChoreID },
+        {
+          $set: {
+            Status: 'completed',
+            CompletedByUserID,
+            CompletedAt: new Date().toISOString(),
+            UpdatedAt: new Date().toISOString()
+          }
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      res.status(200).json({ error: '' });
+
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
 
   // DELETE /api/chores/:id
   // incoming: ChoreID

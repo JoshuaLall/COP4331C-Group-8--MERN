@@ -58,7 +58,7 @@ module.exports = function(db) {
       if (!user) return res.status(400).json({ error: 'Invalid username/password' });
 
       res.status(200).json({
-        UserID: user._id,
+        UserID: user.UserID,
         FirstName: user.FirstName,
         LastName: user.LastName,
         error: ''

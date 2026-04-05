@@ -19,6 +19,9 @@ export default function Dashboard() {
     // stores chores that are still unassigned
     const [openChores, setOpenChores] = useState<any[]>([]);
 
+    // stores completed chores
+    const [completedChores, setCompletedChores] = useState<any[]>([]);
+
 
     // runs once when the dashboard first loads
     // calls the backend to get chores assigned to current user
@@ -67,6 +70,31 @@ export default function Dashboard() {
         fetchOpenChores();
     }, []);
 
+    // gets completed chores for the logged-in user
+    useEffect(() => {
+        const fetchCompletedChores = async () => {
+            if (!userId) {
+                console.log("No userId found");
+                return;
+            }
+
+            try {
+                const res = await fetch(`http://localhost:5000/api/chores/completed?UserID=${userId}`);
+                const data = await res.json();
+
+                if (data.error === "") {
+                    setCompletedChores(data.results);
+                } else {
+                    console.log(data.error);
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+
+        fetchCompletedChores();
+    }, [userId]);
+
     // sends a request to backend to claim a chore for current user
     const handleClaim = async (choreId: number) => {
         try {
@@ -108,6 +136,46 @@ export default function Dashboard() {
         }
     };
 
+    // marks a chore as completed for current user
+    const handleComplete = async (choreId: number) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/chores/${choreId}/complete`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    CompletedByUserID: Number(userId)
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error === "") {
+                // remove from My Chores
+                setMyChores(myChores.filter((chore: any) => chore.ChoreID !== choreId));
+
+                // find completed chore
+                const completedChore = myChores.find((chore: any) => chore.ChoreID === choreId);
+
+                // add to Completed
+                if (completedChore) {
+                    setCompletedChores([
+                        ...completedChores,
+                        {
+                            ...completedChore,
+                            Status: "completed"
+                        }
+                    ]);
+                }
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
 
     // ── TODO: replace with real data from API ──
     // choose which list to show based on the active tab
@@ -116,6 +184,8 @@ export default function Dashboard() {
             ? openChores
             : activeTab === "My Chores"
             ? myChores
+            : activeTab === "Completed"
+            ? completedChores
             : [];
     const housemates: any[] = [];
     const houseName = "";
@@ -286,7 +356,12 @@ export default function Dashboard() {
                                             </button>
                                         )}
                                         {activeTab === "My Chores" && (
-                                            <button className="done-btn">Mark done</button>
+                                            <button
+                                                className="done-btn"
+                                                onClick={() => handleComplete(chore.ChoreID)}
+                                            >
+                                                Mark done
+                                            </button>
                                         )}
                                     </div>
                                 </div>
