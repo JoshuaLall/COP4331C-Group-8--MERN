@@ -4,209 +4,228 @@ import "../CSS/Dashboard.css";
 
 export default function MyChores() {
     const navigate = useNavigate();
-    const [activeSideItem, setActiveSideItem] = useState("My Chores");
 
-    const userId = localStorage.getItem("userId");
-    const householdId = localStorage.getItem("householdId");
+    const userId = Number(localStorage.getItem("userId"));
+    const householdId = Number(localStorage.getItem("householdId"));
 
     const [myChores, setMyChores] = useState<any[]>([]);
     const [housemates, setHousemates] = useState<any[]>([]);
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
 
+    const [showModal, setShowModal] = useState(false);
+    const [isEdit, setIsEdit] = useState(false);
+    const [selectedChore, setSelectedChore] = useState<any>(null);
+
+    const [form, setForm] = useState({
+        Title: "",
+        Description: "",
+        DueDate: "",
+        Priority: "medium",
+        AssignedToUserID: ""
+    });
+
+    // ================= FETCH =================
+
     const fetchMyChores = async () => {
-        if (!userId || !householdId) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`);
-            const data = await res.json();
-            if (data.error === "") {
-                setMyChores(data.results || []);
-            }
-        } catch (e) {
-            console.log("Failed to load my chores:", e);
-        }
+        const res = await fetch(
+            `http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`
+        );
+        const data = await res.json();
+        if (data.error === "") setMyChores(data.results || []);
     };
 
     const fetchHousemates = async () => {
-        if (!householdId) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/users/household/${householdId}`);
-            const data = await res.json();
-            if (data.error === "") {
-                setHousemates(data.results || []);
-            }
-        } catch (e) {
-            console.log("Failed to fetch housemates:", e);
-        }
+        const res = await fetch(
+            `http://localhost:5000/api/users/household/${householdId}`
+        );
+        const data = await res.json();
+        if (data.error === "") setHousemates(data.results || []);
     };
 
-    const fetchCurrentUser = async () => {
-        if (!userId) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
-            const data = await res.json();
-            if (data.error === "") {
-                setCurrentUser(data.result?.FirstName || data.result?.Login || "");
-            }
-        } catch (e) {
-            console.log("Failed to fetch user:", e);
-        }
-    };
-
-    const fetchHousehold = async () => {
-        if (!householdId) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
-            const data = await res.json();
-            if (data.error === "") {
-                setHouseName(data.result?.HouseholdName || "");
-            }
-        } catch (e) {
-            console.log("Failed to fetch household:", e);
+    const fetchUser = async () => {
+        const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+        const data = await res.json();
+        if (data.error === "") {
+            setCurrentUser(data.result?.FirstName || "");
         }
     };
 
     useEffect(() => {
-        if (!userId || !householdId) return;
         fetchMyChores();
         fetchHousemates();
-        fetchCurrentUser();
-        fetchHousehold();
-    }, [userId, householdId]);
+        fetchUser();
+    }, []);
 
-    const getAvatarStyle = (name: string) => {
-        const colors = [
-            { bg: "#C9DDED", color: "#185FA5" },
-            { bg: "#FBEAF0", color: "#993556" },
-            { bg: "#EAF3DE", color: "#3B6D11" },
-            { bg: "#FDF3DC", color: "#9A7010" },
-            { bg: "#FAECE7", color: "#8C4A3C" },
-        ];
-        const idx = name.charCodeAt(0) % colors.length;
-        return colors[idx];
+    // ================= HANDLERS =================
+
+    const handleChange = (e: any) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const getInitials = (mate: any) => {
-        const first = mate.FirstName?.[0] || "";
-        const last = mate.LastName?.[0] || "";
-        return (first + last).toUpperCase() || mate.Login?.[0]?.toUpperCase() || "?";
-    };
-
-    const getDisplayName = (mate: any) =>
-        mate.FirstName
-            ? `${mate.FirstName} ${mate.LastName || ""}`.trim()
-            : mate.Login || "Unknown";
-
-    const handleComplete = async (choreId: number) => {
-        if (!userId) return;
+    const handleSubmit = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/${choreId}/complete`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ CompletedByUserID: Number(userId) })
-            });
-            const data = await res.json();
-            if (data.error === "") {
-                await fetchMyChores();
+            if (isEdit) {
+                await fetch(
+                    `http://localhost:5000/api/chores/${selectedChore.ChoreID}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(form)
+                    }
+                );
             } else {
-                alert(data.error);
+                await fetch("http://localhost:5000/api/chores", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ...form,
+                        HouseholdID: householdId,
+                        CreatedByUserID: userId
+                    })
+                });
             }
+
+            resetModal();
+            fetchMyChores();
         } catch (e) {
-            console.log("Failed to complete chore:", e);
+            console.log(e);
         }
     };
 
+    const handleEdit = (chore: any) => {
+        setIsEdit(true);
+        setSelectedChore(chore);
+
+        setForm({
+            Title: chore.Title,
+            Description: chore.Description,
+            DueDate: chore.DueDate,
+            Priority: chore.Priority,
+            AssignedToUserID: chore.AssignedToUserID || ""
+        });
+
+        setShowModal(true);
+    };
+
+    const handleComplete = async (id: number) => {
+        await fetch(`http://localhost:5000/api/chores/${id}/complete`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ CompletedByUserID: userId })
+        });
+
+        fetchMyChores();
+    };
+
+    // ================= STATS =================
     const stats = [
-        { num: myChores.length, label: "My chores" },
-        { num: myChores.filter((c: any) => c.DueDate === new Date().toISOString().split("T")[0]).length, label: "Due today" },
-        { num: 0, label: "Overdue" },
-        { num: 0, label: "Done this month" },
-    ];
+        { num: myChores.length, label: "Open chores" },
+        {
+            num: myChores.filter(
+                (c: any) =>
+                    c.DueDate === new Date().toISOString().split("T")[0]).length,
+                label: "Mine today"
+            },
+            
+            {
+                num: myChores.filter(
+                    (c: any) =>
+                        c.DueDate && new Date(c.DueDate) < new Date()).length,
+                    label: "Overdue"
+                },
+                
+                { num: 0, label: "Done this month" } 
+            ];
+
+    const resetModal = () => {
+        setShowModal(false);
+        setIsEdit(false);
+        setSelectedChore(null);
+
+        setForm({
+            Title: "",
+            Description: "",
+            DueDate: "",
+            Priority: "medium",
+            AssignedToUserID: ""
+        });
+    };
+
+    // ================= UI =================
 
     return (
         <div className="dash">
+
+            {/* Sidebar */}
             <div className="sidebar">
                 <div className="sb-brand">Our<em>Place</em></div>
 
-                <div className="sb-house">
-                    🏠 {houseName || "Your Household"}
-                </div>
+                <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
-                <div
-                    className={`sb-item ${activeSideItem === "Open Chores" ? "active" : ""}`}
-                    onClick={() => {
-                        setActiveSideItem("Open Chores");
-                        navigate("/dashboard");
-                    }}
-                >
+                <div className="sb-item" onClick={() => navigate("/dashboard")}>
                     📋 Open Chores
                 </div>
 
-                <div
-                    className={`sb-item ${activeSideItem === "Assigned" ? "active" : ""}`}
-                    onClick={() => {
-                        setActiveSideItem("Assigned");
-                        navigate("/assigned");
-                    }}
-                >
+                <div className="sb-item" onClick={() => navigate("/assigned")}>
                     📌 Assigned
                 </div>
 
-                <div className="sb-item active">
-                    ✅ My Chores
+                <div className="sb-item active">✅ My Chores</div>
+
+                <div className="sb-item" onClick={() => navigate("/recurring")}>
+                    🔁 Recurring
                 </div>
 
-                <div className="sb-item">🔁 Recurring</div>
                 <div className="sb-item">⚙️ Settings</div>
-
+                
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>
-
                     {housemates.length === 0 ? (
                         <div className="sb-empty-mates">No housemates yet</div>
-                    ) : (
-                        housemates.map((mate: any) => {
-                            const style = getAvatarStyle(getDisplayName(mate));
-                            return (
-                                <div className="mate" key={mate.UserID}>
-                                    <div className="avatar" style={{ background: style.bg, color: style.color }}>
-                                        {getInitials(mate)}
-                                    </div>
-                                    <span className="mate-name">{getDisplayName(mate)}</span>
-                                </div>
-                            );
-                        })
+                ) : (
+                    housemates.map((mate: any) => (
+                    <div className="mate" key={mate.UserID}>
+                        <div className="avatar">
+                            {(mate.FirstName?.[0] || "") + (mate.LastName?.[0] || "")}
+                            </div>
+                            <span className="mate-name">
+                                {mate.FirstName} {mate.LastName}
+                            </span>
+                            </div>
+                        ))
                     )}
-                </div>
-            </div>
+                    </div>
+                    </div>
 
+            {/* Main */}
             <div className="main">
+
+                {/* Topbar */}
                 <div className="topbar">
                     <div>
                         <div className="topbar-greet">
-                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
-                        </div>
-                        <div className="topbar-sub">
-                            {new Date().toLocaleDateString("en-US", {
-                                weekday: "long",
-                                month: "long",
-                                day: "numeric"
-                            })}
+                            Good morning, {currentUser} 👋
                         </div>
                     </div>
-                    <button className="tb-btn" onClick={() => navigate("/dashboard")}>+ Create Chore</button>
+
+                    <button className="tb-btn" onClick={() => setShowModal(true)}>
+                        + Create Chore
+                    </button>
                 </div>
 
                 <div className="content">
+                    {/* Stats */}
                     <div className="stats-row">
                         {stats.map(({ num, label }) => (
                             <div className="stat" key={label}>
                                 <div className="stat-num">{num}</div>
                                 <div className="stat-lbl">{label}</div>
-                            </div>
-                        ))}
-                    </div>
+                                </div>
+                            ))}
+                        </div>
 
+                    {/* Tabs */}
                     <div className="tabs">
                         <div className="tab" onClick={() => navigate("/dashboard")}>Open</div>
                         <div className="tab" onClick={() => navigate("/assigned")}>Assigned</div>
@@ -214,16 +233,11 @@ export default function MyChores() {
                         <div className="tab" onClick={() => navigate("/dashboard")}>Completed</div>
                     </div>
 
-                    <div className="section-label">
-                        MY CHORES TODAY & UPCOMING
-                    </div>
-
+                    {/* List */}
                     {myChores.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-icon">✅</div>
-                            <div className="empty-text">
-                                You have no chores assigned to you.
-                            </div>
+                            <div>You have no chores.</div>
                         </div>
                     ) : (
                         <div className="cards">
@@ -232,23 +246,29 @@ export default function MyChores() {
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
                                         <div className="card-meta">
-                                            {chore.Description || "No description"}
-                                            {chore.DueDate && (
-                                                <>
-                                                    <br />
-                                                    Due: {chore.DueDate}
-                                                </>
-                                            )}
+                                            {chore.Description}
+                                            <br />
+                                            Due: {chore.DueDate}
                                         </div>
                                     </div>
 
                                     <div className="card-right">
-                                        <span className={`priority p-${chore.Priority?.toLowerCase()}`}>
+                                        <span className={`priority p-${chore.Priority}`}>
                                             {chore.Priority}
                                         </span>
 
-                                        <button className="done-btn" onClick={() => handleComplete(chore.ChoreID)}>
-                                            Mark as Complete
+                                        <button
+                                            className="claim-btn"
+                                            onClick={() => handleEdit(chore)}
+                                        >
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            className="done-btn"
+                                            onClick={() => handleComplete(chore.ChoreID)}
+                                        >
+                                            Complete
                                         </button>
                                     </div>
                                 </div>
@@ -257,6 +277,57 @@ export default function MyChores() {
                     )}
                 </div>
             </div>
+
+            {/* MODAL */}
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="modal">
+
+                        <div className="modal-header">
+                            <div className="modal-title">
+                                {isEdit ? "Edit Chore" : "New Chore"}
+                            </div>
+                            <button className="modal-close" onClick={resetModal}>✕</button>
+                        </div>
+
+                        <div className="modal-body">
+
+                            <label className="modal-lbl">Title</label>
+                            <input className="modal-inp" name="Title" value={form.Title} onChange={handleChange} />
+
+                            <label className="modal-lbl">Description</label>
+                            <textarea className="modal-inp modal-textarea" name="Description" value={form.Description} onChange={handleChange} />
+
+                            <label className="modal-lbl">Due Date</label>
+                            <input type="date" className="modal-inp" name="DueDate" value={form.DueDate} onChange={handleChange} />
+
+                            <label className="modal-lbl">Assign User</label>
+                            <select
+                                className="modal-inp"
+                                name="AssignedToUserID"
+                                value={form.AssignedToUserID}
+                                onChange={handleChange}
+                            >
+                                <option value="">None</option>
+                                {housemates.map((mate: any) => (
+                                    <option key={mate.UserID} value={mate.UserID}>
+                                        {mate.FirstName}
+                                    </option>
+                                ))}
+                            </select>
+
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="modal-cancel" onClick={resetModal}>Cancel</button>
+                            <button className="modal-submit" onClick={handleSubmit}>
+                                {isEdit ? "Save" : "Publish Chore"}
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
