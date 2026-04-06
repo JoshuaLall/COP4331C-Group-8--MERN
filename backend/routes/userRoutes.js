@@ -3,6 +3,38 @@ const router = express.Router();
 
 module.exports = function (db) {
 
+  // GET /api/users/household/:householdId
+  // incoming: HouseholdID
+  // outgoing: results[], error
+  router.get('/household/:householdId', async (req, res) => {
+    try {
+      const householdId = Number(req.params.householdId);
+
+      if (!householdId) {
+        return res.status(400).json({ error: 'HouseholdID is required', results: [] });
+      }
+
+      const results = await db.collection('Users').find(
+        { HouseholdID: householdId },
+        {
+          projection: {
+            _id: 0,
+            UserID: 1,
+            FirstName: 1,
+            LastName: 1,
+            Login: 1,
+            Email: 1,
+            HouseholdID: 1
+          }
+        }
+      ).toArray();
+
+      res.status(200).json({ error: '', results });
+    } catch (e) {
+      res.status(500).json({ error: e.toString(), results: [] });
+    }
+  });
+
   // GET /api/users/:id
   // incoming: UserID
   // outgoing: result, error
@@ -69,38 +101,6 @@ module.exports = function (db) {
       res.status(200).json({ error: '' });
     } catch (e) {
       res.status(500).json({ error: e.toString() });
-    }
-  });
-
-  // GET /api/users/household/:householdId
-  // incoming: HouseholdID
-  // outgoing: results[], error
-  router.get('/household/:householdId', async (req, res) => {
-    try {
-      const householdId = Number(req.params.householdId);
-
-      if (!householdId) {
-        return res.status(400).json({ error: 'HouseholdID is required', results: [] });
-      }
-
-      const results = await db.collection('Users').find(
-        { HouseholdID: householdId },
-        {
-          projection: {
-            _id: 0,
-            UserID: 1,
-            FirstName: 1,
-            LastName: 1,
-            Login: 1,
-            Email: 1,
-            HouseholdID: 1
-          }
-        }
-      ).toArray();
-
-      res.status(200).json({ error: '', results });
-    } catch (e) {
-      res.status(500).json({ error: e.toString(), results: [] });
     }
   });
 
