@@ -215,35 +215,28 @@ export default function MyChores() {
 
     // ================= STATS =================
 
+    const overdueCount = myChores.filter((c: any) =>
+        c.DueDate && new Date(c.DueDate) < new Date() && c.Status !== "completed"
+    ).length;
+    
+    const doneThisMonth = myChores.filter((c: any) => {
+        if (!c.CompletedAt) return false;
+        const d = new Date(c.CompletedAt);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+
     const stats = [
-        {
-            num: myChores.length,
-            label: "My Chores"
-        },
-        {
-            num: myChores.filter((c: any) => c.Status === "open").length,
-            label: "Open"
-        },
-        {
-            num: myChores.filter((c: any) => {
-                if (!c.DueDate) return false;
-                return new Date(c.DueDate) < new Date() && c.Status !== "completed";
-            }).length,
-            label: "Overdue"
-        },
-        {
-            num: myChores.filter((c: any) => {
-                if (!c.CompletedAt) return false;
-                const completed = new Date(c.CompletedAt);
-                const now = new Date();
-                return (
-                    completed.getMonth() === now.getMonth() &&
-                    completed.getFullYear() === now.getFullYear()
-                );
-            }).length,
-            label: "Done this month"
-        }
-    ];
+    { num: myChores.length, label: "Open chores" },
+    { num: myChores.filter((c: any) => {
+        if (!c.DueDate) return false;
+        const due = new Date(c.DueDate);
+        const now = new Date();
+        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+    }).length, label: "Mine today" },
+    { num: overdueCount, label: "Overdue" },
+    { num: doneThisMonth, label: "Done this month" }
+  ];
 
     // ================= UI =================
 
@@ -377,7 +370,6 @@ export default function MyChores() {
                 </div>
             </div>
 
-            {/* Modal — matches screenshot exactly, with recurring frequency field added */}
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal">
