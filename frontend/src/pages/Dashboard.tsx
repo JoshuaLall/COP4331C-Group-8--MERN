@@ -422,11 +422,7 @@ export default function Dashboard() {
                             <div
                             key={tab}
                             className={`tab ${activeTab === tab ? "active" : ""}`}
-                            onClick={() => {
-                                if (tab === "Assigned") navigate("/assigned");
-                                else if (tab === "My Chores") navigate("/my-chores");
-                                else setActiveTab(tab);
-                            }}
+                            onClick={() => setActiveTab(tab)}
                             >
                         {tab}
                         </div>

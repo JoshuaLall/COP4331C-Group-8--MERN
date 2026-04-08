@@ -176,7 +176,9 @@ module.exports = function (db) {
         HouseholdID: householdId,
         CompletedByUserID: userId,
         Status: 'completed'
-      }).toArray();
+      })
+      .sort({ CompletedAt: -1 })
+      .toArray();
 
       res.status(200).json({ error: "", results });
     } catch (e) {
@@ -317,7 +319,7 @@ module.exports = function (db) {
           $set: {
             Status: 'completed',
             CompletedByUserID: Number(CompletedByUserID),
-            CompletedAt: new Date().toISOString(),
+            CompletedAt: new Date(),
             UpdatedAt: new Date().toISOString()
           }
         }
@@ -388,6 +390,8 @@ module.exports = function (db) {
       res.status(200).json({ error: '' });
 
     } catch (e) {
+      console.error("COMPLETE ROUTE ERROR:", JSON.stringify(e, null, 2));
+      console.error("ERR INFO:", JSON.stringify(e.errInfo, null, 2));
       res.status(500).json({ error: e.toString() });
     }
   });
