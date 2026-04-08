@@ -18,6 +18,8 @@ export default function Settings() {
     // ── HOUSEHOLD ──
     const [inviteEmail, setInviteEmail] = useState("");
     const [members, setMembers] = useState<any[]>([]);
+    const [housemates, setHousemates] = useState<any[]>([]);
+    const [houseName, setHouseName] = useState("");
 
     const sideItems = [
         { icon: "📋", label: "Open Chores" },
@@ -31,35 +33,44 @@ export default function Settings() {
     // 🔹 LOAD USER + MEMBERS
     // ─────────────────────────────
     useEffect(() => {
-        if (!userId) return;
+    if (!userId) return;
 
-        // GET USER
-        fetch(`http://localhost:5000/api/users/${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data.error) {
-                    setFirstName(data.result.FirstName);
-                    setLastName(data.result.LastName);
-                    setEmail(data.result.Email);
+    // GET USER
+    fetch(`http://localhost:5000/api/users/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.error) {
+                setFirstName(data.result.FirstName);
+                setLastName(data.result.LastName);
+                setEmail(data.result.Email);
 
-                    // Save household if not stored
-                    if (data.result.HouseholdID) {
-                        localStorage.setItem("householdId", data.result.HouseholdID);
-                    }
+                const hId = data.result.HouseholdID;
+
+                if (hId) {
+                    localStorage.setItem("householdId", hId);
+
+                    // 🔥 GET HOUSEHOLD NAME
+                    fetch(`http://localhost:5000/api/households/${hId}`)
+                        .then(res => res.json())
+                        .then(hData => {
+                            if (!hData.error) {
+                                setHouseName(hData.result.HouseholdName);
+                            }
+                        });
+
+                    // 🔥 GET HOUSEMATES
+                    fetch(`http://localhost:5000/api/users/household/${hId}`)
+                        .then(res => res.json())
+                        .then(mData => {
+                            if (!mData.error) {
+                                setMembers(mData.results);
+                                setHousemates(mData.results);
+                            }
+                        });
                 }
-            });
-
-        // GET HOUSEHOLD MEMBERS
-        if (householdId) {
-            fetch(`http://localhost:5000/api/users/household/${householdId}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.error) {
-                        setMembers(data.results);
-                    }
-                });
-        }
-    }, [userId, householdId]);
+            }
+        });
+    }, [userId]);
 
     // ─────────────────────────────
     // 🔹 UPDATE USER
@@ -131,7 +142,9 @@ export default function Settings() {
             <div className="sidebar">
                 <div className="sb-brand">Our<em>Place</em></div>
 
-                <div className="sb-house">🏠 Household</div>
+                <div className="sb-house">
+                    🏠 {houseName || "Your Household"}
+                    </div>
 
                 {sideItems.map(({ icon, label }) => (
                     <div
