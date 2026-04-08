@@ -5,70 +5,222 @@ import "../CSS/Dashboard.css";
 export default function Recurring() {
     const navigate = useNavigate();
 
+    const userId = Number(localStorage.getItem("userId"));
+    const householdId = Number(localStorage.getItem("householdId"));
+
     const [recurringChores, setRecurringChores] = useState<any[]>([]);
+    const [completedChores, setCompletedChores] = useState<any[]>([]);
     const [housemates, setHousemates] = useState<any[]>([]);
+    const [houseName, setHouseName] = useState("");
+    const [currentUser, setCurrentUser] = useState("");
+
     const [showModal, setShowModal] = useState(false);
     const [isEdit, setIsEdit] = useState(false);
     const [selectedChore, setSelectedChore] = useState<any>(null);
-
-    const USER_ID = Number(localStorage.getItem("userId"));
-    const HOUSEHOLD_ID = Number(localStorage.getItem("householdId"));
+    const [isRecurring, setIsRecurring] = useState(true); // always true on this page
 
     const [form, setForm] = useState({
         Title: "",
         Description: "",
-        RepeatFrequency: "weekly",
-        RepeatInterval: 1,
-        NextDueDate: "",
-        DefaultAssignedUserID: ""
+        DueDate: "",
+        Priority: "medium",
+        AssignedToUserID: "",
+        RepeatFrequency: "weekly"
     });
 
-    // ================= FETCH DATA =================
+    // ================= FETCH =================
 
     const fetchRecurring = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/recurring-chores?HouseholdID=${HOUSEHOLD_ID}`
+                `http://localhost:5000/api/recurring-chores?HouseholdID=${householdId}`
             );
             const data = await res.json();
-            if (!data.error) setRecurringChores(data.results);
-        } catch (err) {
-            console.error(err);
+            if (data.error === "" || !data.error) setRecurringChores(data.results || []);
+        } catch (e) {
+            console.log("Failed to fetch recurring chores:", e);
+        }
+    };
+
+    const fetchCompleted = async () => {
+        try {
+            const res = await fetch(
+                `http://localhost:5000/api/chores/completed?HouseholdID=${householdId}`
+            );
+            const data = await res.json();
+            if (data.error === "" || !data.error) setCompletedChores(data.results || []);
+        } catch (e) {
+            console.log("Failed to fetch completed chores:", e);
         }
     };
 
     const fetchHousemates = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/users/household/${HOUSEHOLD_ID}`
+                `http://localhost:5000/api/users/household/${householdId}`
             );
             const data = await res.json();
-            if (!data.error) setHousemates(data.results);
-        } catch (err) {
-            console.error(err);
+            if (data.error === "" || !data.error) setHousemates(data.results || []);
+        } catch (e) {
+            console.log("Failed to fetch housemates:", e);
         }
     };
 
-    useEffect(() => {
+    const fetchUser = async () => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const data = await res.json();
+            if (data.error === "") setCurrentUser(data.result?.FirstName || data.result?.Login || "");
+        } catch (e) {
+            console.log("Failed to fetch user:", e);
+        }
+    };
+
+    const fetchHousehold = async () => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const data = await res.json();
+            if (data.error === "") setHouseName(data.result?.HouseholdName || "");
+        } catch (e) {
+            console.log("Failed to fetch household:", e);
+        }
+    };
+
+    const fetchAll = () => {
         fetchRecurring();
+        fetchCompleted();
         fetchHousemates();
+        fetchUser();
+        fetchHousehold();
+    };
+
+    useEffect(() => {
+        if (!userId || !householdId) return;
+        fetchAll();
     }, []);
 
-    // ================= HANDLERS =================
+    // ================= STATS =================
 
-    const handleChange = (e: any) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const overdueCount = recurringChores.filter((c: any) => {
+        if (!c.NextDueDate) return false;
+        return new Date(c.NextDueDate) < new Date();
+    }).length;
+
+    const doneThisMonth = completedChores.filter((c: any) => {
+        if (!c.CompletedAt) return false;
+        const d = new Date(c.CompletedAt);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+
+    const stats = [
+    { num: recurringChores.length, label: "Open chores" },
+    { num: recurringChores.filter((c: any) => {
+        if (!c.NextDueDate) return false;
+        const due = new Date(c.NextDueDate);
+        const now = new Date();
+        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+    }).length, label: "Mine today" },
+    { num: overdueCount, label: "Overdue" },
+    { num: doneThisMonth, label: "Done this month" }
+  ];
+
+    // ================= HELPERS =================
+
+    const getAvatarStyle = (name: string) => {
+        const colors = [
+            { bg: "#C9DDED", color: "#185FA5" },
+            { bg: "#FBEAF0", color: "#993556" },
+            { bg: "#EAF3DE", color: "#3B6D11" },
+            { bg: "#FDF3DC", color: "#9A7010" },
+            { bg: "#FAECE7", color: "#8C4A3C" },
+        ];
+        return colors[(name?.charCodeAt(0) || 0) % colors.length];
+    };
+
+    const getInitials = (mate: any) => {
+        const f = mate.FirstName?.[0] || "";
+        const l = mate.LastName?.[0] || "";
+        return (f + l).toUpperCase() || mate.Login?.[0]?.toUpperCase() || "?";
+    };
+
+    const getDisplayName = (mate: any) =>
+        mate.FirstName ? `${mate.FirstName} ${mate.LastName || ""}`.trim() : mate.Login || "Unknown";
+
+    const getDisplayNameById = (id: number | null) => {
+        if (!id) return "Unassigned";
+        const mate = housemates.find((u: any) => Number(u.UserID) === Number(id));
+        return mate ? getDisplayName(mate) : `User #${id}`;
+    };
+
+    // ================= MODAL HANDLERS =================
+
+    const handleChange = (e: any) => setForm({ ...form, [e.target.name]: e.target.value });
+
+    const resetModal = () => {
+        setShowModal(false);
+        setIsEdit(false);
+        setSelectedChore(null);
+        setIsRecurring(true);
+        setForm({
+            Title: "",
+            Description: "",
+            DueDate: "",
+            Priority: "medium",
+            AssignedToUserID: "",
+            RepeatFrequency: "weekly"
+        });
+    };
+
+    const handleOpenCreate = () => {
+        setIsEdit(false);
+        setSelectedChore(null);
+        setIsRecurring(true);
+        setForm({
+            Title: "",
+            Description: "",
+            DueDate: "",
+            Priority: "medium",
+            AssignedToUserID: "",
+            RepeatFrequency: "weekly"
+        });
+        setShowModal(true);
+    };
+
+    const handleOpenEdit = (chore: any) => {
+        setIsEdit(true);
+        setSelectedChore(chore);
+        setForm({
+            Title: chore.Title || "",
+            Description: chore.Description || "",
+            DueDate: chore.NextDueDate || "",
+            Priority: chore.Priority || "medium",
+            AssignedToUserID: chore.DefaultAssignedUserID ? String(chore.DefaultAssignedUserID) : "",
+            RepeatFrequency: chore.RepeatFrequency || "weekly"
+        });
+        setShowModal(true);
     };
 
     const handleSubmit = async () => {
+        if (!form.Title.trim()) { alert("Please enter a chore title."); return; }
         try {
-            if (isEdit) {
+            if (isEdit && selectedChore) {
                 await fetch(
                     `http://localhost:5000/api/recurring-chores/${selectedChore.RecurringTemplateID}`,
                     {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(form)
+                        body: JSON.stringify({
+                            Title: form.Title,
+                            Description: form.Description,
+                            RepeatFrequency: form.RepeatFrequency,
+                            RepeatInterval: 1,
+                            NextDueDate: form.DueDate || null,
+                            DefaultAssignedUserID: form.AssignedToUserID
+                                ? Number(form.AssignedToUserID)
+                                : null,
+                            Priority: form.Priority
+                        })
                     }
                 );
             } else {
@@ -76,48 +228,69 @@ export default function Recurring() {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        ...form,
-                        HouseholdID: HOUSEHOLD_ID,
-                        CreatedByUserID: USER_ID
+                        Title: form.Title,
+                        Description: form.Description,
+                        HouseholdID: householdId,
+                        CreatedByUserID: userId,
+                        RepeatFrequency: form.RepeatFrequency,
+                        RepeatInterval: 1,
+                        NextDueDate: form.DueDate || null,
+                        DefaultAssignedUserID: form.AssignedToUserID
+                            ? Number(form.AssignedToUserID)
+                            : null,
+                        Priority: form.Priority
                     })
                 });
             }
-
             resetModal();
             fetchRecurring();
-        } catch (err) {
-            console.error(err);
+        } catch (e) {
+            console.log("Submit failed:", e);
         }
     };
 
-    const handleEdit = (chore: any) => {
-        setIsEdit(true);
-        setSelectedChore(chore);
+    // Mark the most recent active chore instance as complete
+    const handleComplete = async (chore: any) => {
+        try {
+            // Find the active chore instance linked to this recurring template
+            const res = await fetch(
+                `http://localhost:5000/api/chores?HouseholdID=${householdId}`
+            );
+            const data = await res.json();
+            if (data.error !== "") return;
 
-        setForm({
-            Title: chore.Title,
-            Description: chore.Description,
-            RepeatFrequency: chore.RepeatFrequency,
-            RepeatInterval: chore.RepeatInterval,
-            NextDueDate: chore.NextDueDate,
-            DefaultAssignedUserID: chore.DefaultAssignedUserID || ""
-        });
+            const allChores: any[] = data.results || [];
+            const instance = allChores
+                .filter((c: any) =>
+                    c.RecurringTemplateID === chore.RecurringTemplateID &&
+                    c.Status !== "completed"
+                )
+                .sort((a: any, b: any) =>
+                    new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
+                )[0];
 
-        setShowModal(true);
-    };
+            if (!instance) {
+                alert("No active chore instance found for this recurring chore.");
+                return;
+            }
 
-    const resetModal = () => {
-        setShowModal(false);
-        setIsEdit(false);
-        setSelectedChore(null);
-        setForm({
-            Title: "",
-            Description: "",
-            RepeatFrequency: "weekly",
-            RepeatInterval: 1,
-            NextDueDate: "",
-            DefaultAssignedUserID: ""
-        });
+            const completeRes = await fetch(
+                `http://localhost:5000/api/chores/${instance.ChoreID}/complete`,
+                {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ CompletedByUserID: userId })
+                }
+            );
+            const completeData = await completeRes.json();
+            if (completeData.error === "") {
+                fetchAll();
+            } else {
+                alert(completeData.error);
+            }
+        } catch (e) {
+            console.log("Failed to complete chore:", e);
+        }
     };
 
     // ================= UI =================
@@ -128,32 +301,33 @@ export default function Recurring() {
             {/* Sidebar */}
             <div className="sidebar">
                 <div className="sb-brand">Our<em>Place</em></div>
-
-                <div className="sb-house">🏠 Your Household</div>
+                <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
                 <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
                 <div className="sb-item active">🔁 Recurring</div>
-                <div className="sb-item">⚙️ Settings</div>
+                <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
 
-                {/* Housemates */}
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>
-
                     {housemates.length === 0 ? (
                         <div className="sb-empty-mates">No housemates yet</div>
                     ) : (
-                        housemates.map((mate: any) => (
-                            <div className="mate" key={mate.UserID}>
-                                <div className="avatar">
-                                    {mate.FirstName[0]}
+                        housemates.map((mate: any) => {
+                            const style = getAvatarStyle(getDisplayName(mate));
+                            return (
+                                <div className="mate" key={mate.UserID}>
+                                    <div
+                                        className="avatar"
+                                        style={{ background: style.bg, color: style.color }}
+                                    >
+                                        {getInitials(mate)}
+                                    </div>
+                                    <span className="mate-name">{getDisplayName(mate)}</span>
                                 </div>
-                                <span className="mate-name">
-                                    {mate.FirstName}
-                                </span>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>
@@ -161,55 +335,91 @@ export default function Recurring() {
             {/* Main */}
             <div className="main">
 
-                {/* Topbar */}
                 <div className="topbar">
                     <div>
-                        <div className="topbar-greet">Recurring Chores</div>
-                        <div className="topbar-sub">Manage templates</div>
+                        <div className="topbar-greet">
+                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
+                        </div>
+                        <div className="topbar-sub">
+                            {new Date().toLocaleDateString("en-US", {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric"
+                            })}
+                        </div>
                     </div>
-
-                    <button
-                        className="tb-btn"
-                        onClick={() => setShowModal(true)}
-                    >
-                        + Create Chore
-                    </button>
+                    <button className="tb-btn" onClick={handleOpenCreate}>+ Create Chore</button>
                 </div>
 
-                {/* Content */}
                 <div className="content">
+
+                    {/* Stats row — all from real data */}
+                    <div className="stats-row">
+                        {stats.map(({ num, label }) => (
+                            <div className="stat" key={label}>
+                                <div className="stat-num">{num}</div>
+                                <div className="stat-lbl">{label}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="tabs">
+                        <div className="tab" onClick={() => navigate("/dashboard")}>Open</div>
+                        <div className="tab" onClick={() => navigate("/assigned")}>Assigned</div>
+                        <div className="tab" onClick={() => navigate("/my-chores")}>My Chores</div>
+                        <div
+                            className="tab"
+                            onClick={() => navigate("/dashboard", { state: { tab: "Completed" } })}
+                        >
+                            Completed
+                        </div>
+                    </div>
 
                     <div className="section-label">RECURRING CHORES</div>
 
                     {recurringChores.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-icon">🔁</div>
-                            <div>No recurring chores yet.</div>
+                            <div className="empty-text">No recurring chores yet.</div>
                         </div>
                     ) : (
                         <div className="cards">
                             {recurringChores.map((chore: any) => (
                                 <div className="card" key={chore.RecurringTemplateID}>
-
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
-
                                         <div className="card-meta">
-                                            Assigned to: {chore.DefaultAssignedUserID || "None"} <br />
-                                            Frequency: {chore.RepeatFrequency} <br />
-                                            Next Due: {chore.NextDueDate}
+                                            {chore.Description || "No description"}
+                                            <br />
+                                            Assigned to: {getDisplayNameById(chore.DefaultAssignedUserID)}
+                                            <br />
+                                            Frequency: {chore.RepeatFrequency}
+                                            {chore.NextDueDate && (
+                                                <><br />Next due: {chore.NextDueDate}</>
+                                            )}
                                         </div>
                                     </div>
 
                                     <div className="card-right">
+                                        <span className={`priority p-${(chore.Priority || "medium").toLowerCase()}`}>
+                                            {chore.Priority || "medium"}
+                                        </span>
+
                                         <button
                                             className="claim-btn"
-                                            onClick={() => handleEdit(chore)}
+                                            onClick={() => handleOpenEdit(chore)}
                                         >
                                             Edit
                                         </button>
-                                    </div>
 
+                                        <button
+                                            className="done-btn"
+                                            onClick={() => handleComplete(chore)}
+                                        >
+                                            Mark as Complete
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -217,114 +427,120 @@ export default function Recurring() {
                 </div>
             </div>
 
-            {/* MODAL */}
+            {/* ── Modal (Create + Edit) — identical to all other pages ── */}
             {showModal && (
-                <div className="modal-overlay">
+                <div className="modal-overlay" onClick={resetModal}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
 
-                    <div className="modal">
-
-                        {/* Header */}
                         <div className="modal-header">
                             <div className="modal-title">
-                                {isEdit ? "Edit Chore" : "New Chore"}
+                                {isEdit ? "✏️ Edit Chore" : "🏡 New Chore"}
                             </div>
-
-                            <button className="modal-close" onClick={resetModal}>
-                                ✕
-                            </button>
+                            <button className="modal-close" onClick={resetModal}>✕</button>
                         </div>
 
-                        {/* Body */}
                         <div className="modal-body">
 
-                            <label className="modal-lbl">Chore Title *</label>
+                            <label className="modal-lbl">CHORE TITLE *</label>
                             <input
                                 className="modal-inp"
                                 name="Title"
+                                placeholder="e.g. Take out the trash"
                                 value={form.Title}
                                 onChange={handleChange}
-                                placeholder="e.g. Take out trash"
                             />
 
-                            <label className="modal-lbl">Description</label>
+                            <label className="modal-lbl">DESCRIPTION</label>
                             <textarea
                                 className="modal-inp modal-textarea"
                                 name="Description"
+                                placeholder="Any extra details..."
                                 value={form.Description}
                                 onChange={handleChange}
-                                placeholder="Any extra details..."
                             />
 
                             <div className="modal-row">
                                 <div className="modal-col">
-                                    <label className="modal-lbl">Next Due</label>
+                                    <label className="modal-lbl">DUE DATE</label>
                                     <input
                                         type="date"
                                         className="modal-inp"
-                                        name="NextDueDate"
-                                        value={form.NextDueDate}
+                                        name="DueDate"
+                                        value={form.DueDate}
                                         onChange={handleChange}
                                     />
                                 </div>
-
                                 <div className="modal-col">
-                                    <label className="modal-lbl">Frequency</label>
+                                    <label className="modal-lbl">PRIORITY</label>
                                     <select
-                                        className="modal-inp modal-select"
-                                        name="RepeatFrequency"
+                                        className="modal-inp"
+                                        name="Priority"
+                                        value={form.Priority}
                                         onChange={handleChange}
-                                        value={form.RepeatFrequency}
                                     >
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
+                                        <option value="low">🟢 Low</option>
+                                        <option value="medium">🟡 Medium</option>
+                                        <option value="high">🔴 High</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <label className="modal-lbl">Repeat Interval</label>
-                            <input
-                                className="modal-inp"
-                                type="number"
-                                name="RepeatInterval"
-                                value={form.RepeatInterval}
-                                onChange={handleChange}
-                            />
-
-                            {/* Assign User */}
                             <label className="modal-lbl">
-                                Assign To <span className="modal-lbl-hint">(optional)</span>
+                                ASSIGN TO{" "}
+                                <span style={{ fontWeight: 400, textTransform: "none", opacity: 0.6 }}>
+                                    (leave blank for open list)
+                                </span>
                             </label>
-
                             {housemates.length === 0 ? (
-                                <div className="modal-no-mates">
-                                    No housemates yet
+                                <div className="modal-inp" style={{ color: "#aaa", cursor: "default" }}>
+                                    No housemates yet — goes to Open list
                                 </div>
                             ) : (
                                 <select
-                                    className="modal-inp modal-select"
-                                    name="DefaultAssignedUserID"
-                                    value={form.DefaultAssignedUserID}
+                                    className="modal-inp"
+                                    name="AssignedToUserID"
+                                    value={form.AssignedToUserID}
                                     onChange={handleChange}
                                 >
                                     <option value="">None</option>
                                     {housemates.map((mate: any) => (
                                         <option key={mate.UserID} value={mate.UserID}>
-                                            {mate.FirstName}
+                                            {getDisplayName(mate)}
                                         </option>
                                     ))}
                                 </select>
                             )}
+
+                            {/* Recurring toggle — always on for this page, shown on create only */}
+                            {!isEdit && (
+                                <div className="modal-toggle-row">
+                                    <label className="modal-lbl" style={{ margin: 0 }}>
+                                        RECURRING CHORE?
+                                    </label>
+                                    <div className={`toggle ${isRecurring ? "on" : ""}`} onClick={() => setIsRecurring(!isRecurring)}>
+                                        <div className="toggle-thumb" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Repeat frequency — always shown since this is the Recurring page */}
+                            <label className="modal-lbl">REPEAT FREQUENCY</label>
+                            <select
+                                className="modal-inp"
+                                name="RepeatFrequency"
+                                value={form.RepeatFrequency}
+                                onChange={handleChange}
+                            >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
                         </div>
 
-                        {/* Footer */}
                         <div className="modal-footer">
-                            <button className="modal-cancel" onClick={resetModal}>
-                                Cancel
-                            </button>
-
+                            <button className="modal-cancel" onClick={resetModal}>Cancel</button>
                             <button className="modal-submit" onClick={handleSubmit}>
-                                {isEdit ? "Save" : "Publish Chore"}
+                                {isEdit ? "💾 Save Changes" : "🏡 Publish Chore"}
                             </button>
                         </div>
 

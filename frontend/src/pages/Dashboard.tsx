@@ -76,7 +76,7 @@ export default function Dashboard() {
     const fetchCompletedChores = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/chores/completed?HouseholdID=${householdId}`
+                `http://localhost:5000/api/chores/completed?HouseholdID=${householdId}&UserID=${userId}`
             );
             const data = await res.json();
             if (data.error === "") setCompletedChores(data.results || []);
@@ -140,10 +140,9 @@ export default function Dashboard() {
 
     // ================= STATS =================
 
-    const overdueCount = openChores.filter((c: any) => {
-        if (!c.DueDate) return false;
-        return new Date(c.DueDate) < new Date();
-    }).length;
+    const overdueCount = [...openChores, ...assignedChores].filter((c: any) =>
+        c.DueDate && new Date(c.DueDate) < new Date() && c.Status !== "completed"
+    ).length;
 
     const doneThisMonth = completedChores.filter((c: any) => {
         if (!c.CompletedAt) return false;
@@ -153,23 +152,21 @@ export default function Dashboard() {
     }).length;
 
     const stats = [
-        { num: openChores.length, label: "Open chores" },
+        { num: openChores.length + assignedChores.length, label: "Open chores" },
         {
             num: myChores.filter((c: any) => {
                 if (!c.DueDate) return false;
                 const due = new Date(c.DueDate);
                 const now = new Date();
-                return (
-                    due.getDate() === now.getDate() &&
-                    due.getMonth() === now.getMonth() &&
-                    due.getFullYear() === now.getFullYear()
-                );
-            }).length,
-            label: "Mine today"
-        },
-        { num: overdueCount, label: "Overdue" },
-        { num: doneThisMonth, label: "Done this month" }
-    ];
+                return due.getDate() === now.getDate() &&
+                due.getMonth() === now.getMonth() &&
+                due.getFullYear() === now.getFullYear();
+        }).length,
+        label: "Mine today"
+    },
+    { num: overdueCount, label: "Overdue" },
+    { num: doneThisMonth, label: "Done this month" }
+  ];
 
     // ================= HELPERS =================
 
@@ -276,7 +273,7 @@ export default function Dashboard() {
 
     const handleClaim = async (choreId: number) => {
         try {
-            await fetch(`http://localhost:5000/api/chores/${choreId}/assign`, {
+            await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ AssignedToUserID: userId })
@@ -418,18 +415,22 @@ export default function Dashboard() {
                             </div>
                         ))}
                     </div>
-
+                    
                     {/* Tabs */}
                     <div className="tabs">
                         {tabs.map((tab) => (
                             <div
-                                key={tab}
-                                className={`tab ${activeTab === tab ? "active" : ""}`}
-                                onClick={() => setActiveTab(tab)}
+                            key={tab}
+                            className={`tab ${activeTab === tab ? "active" : ""}`}
+                            onClick={() => {
+                                if (tab === "Assigned") navigate("/assigned");
+                                else if (tab === "My Chores") navigate("/my-chores");
+                                else setActiveTab(tab);
+                            }}
                             >
-                                {tab}
-                            </div>
-                        ))}
+                        {tab}
+                        </div>
+                    ))}
                     </div>
 
                     {/* Completed section label */}

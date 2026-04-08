@@ -120,16 +120,16 @@ export default function Assigned() {
     }).length;
 
     const stats = [
-        { num: assignedChores.length, label: "Assigned chores" },
-        {
-            num: assignedChores.filter(
-                (c: any) => Number(c.AssignedToUserID) === Number(userId)
-            ).length,
-            label: "Assigned to me"
-        },
-        { num: overdueCount, label: "Overdue" },
-        { num: doneThisMonth, label: "Done this month" }
-    ];
+    { num: assignedChores.length + completedChores.length, label: "Open chores" },
+    { num: assignedChores.filter((c: any) => {
+        if (!c.DueDate) return false;
+        const due = new Date(c.DueDate);
+        const now = new Date();
+        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+    }).length, label: "Mine today" },
+    { num: overdueCount, label: "Overdue" },
+    { num: doneThisMonth, label: "Done this month" }
+  ];
 
     // ================= HELPERS =================
 
@@ -531,7 +531,6 @@ export default function Assigned() {
                                 </select>
                             )}
 
-                            {/* Hide recurring toggle when editing an existing chore */}
                             {!isEdit && (
                                 <div className="modal-toggle-row">
                                     <label className="modal-lbl" style={{ margin: 0 }}>
