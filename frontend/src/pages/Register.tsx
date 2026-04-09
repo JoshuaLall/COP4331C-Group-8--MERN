@@ -39,47 +39,51 @@ export default function Register() {
                     Password: password
                 })
             });
-
-            console.log("REGISTER STATUS:", regRes.status);
-            console.log("REGISTER CONTENT-TYPE:", regRes.headers.get("content-type"));
-
             const regData = await regRes.json();
-            console.log("REGISTER RESPONSE:", regData);
 
-            if (regData.error !== "") {
-                alert(regData.error);
+            if (!regRes.ok || regData.error !== "") {
+                alert(regData.error || "Registration failed.");
                 setLoading(false);
                 return;
             }
 
-            const newUserId = regData.UserID;
-            console.log("NEW USER ID:", newUserId);
+            const loginRes = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ Login: username, Password: password })
+            });
+            const loginData = await loginRes.json();
+
+            if (!loginRes.ok || loginData.error !== "") {
+                alert(loginData.error || "Unable to log in after registration.");
+                setLoading(false);
+                return;
+            }
+
+            localStorage.setItem("token", loginData.token || "");
+            localStorage.setItem("userId", String(loginData.UserID));
 
             const hhRes = await fetch("http://localhost:5000/api/households", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     HouseholdName: householdName,
-                    CreatedByUserID: newUserId
+                    CreatedByUserID: loginData.UserID
                 })
             });
 
-            console.log("HOUSEHOLD STATUS:", hhRes.status);
-            console.log("HOUSEHOLD CONTENT-TYPE:", hhRes.headers.get("content-type"));
-
             const hhData = await hhRes.json();
-            console.log("HOUSEHOLD RESPONSE:", hhData);
 
-            if (hhData.error !== "") {
-                alert(hhData.error);
+            if (!hhRes.ok || hhData.error !== "") {
+                alert(hhData.error || "Unable to create household.");
                 setLoading(false);
                 return;
             }
 
-            alert("Account created! Please log in.");
-            navigate("/");
+            localStorage.setItem("householdId", String(hhData.HouseholdID));
+            localStorage.setItem("token", loginData.token || "");
+            navigate("/overview");
         } catch (e) {
-            console.log("REGISTER FLOW ERROR:", e);
             alert("Something went wrong. Is the backend running?");
         }
 

@@ -5,6 +5,8 @@ import "../CSS/Login.css";
 export default function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
+    const [loginLoading, setLoginLoading] = useState(false);
     const navigate = useNavigate();
     const [showForgot, setShowForgot] = useState(false);
     const [forgotEmail, setForgotEmail] = useState("");
@@ -12,18 +14,35 @@ export default function LoginPage() {
     const [forgotLoading, setForgotLoading] = useState(false);
 
     const handleLogin = async () => {
-        const res = await fetch("http://localhost:5000/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ Login: username, Password: password })
-        });
-        const data = await res.json();
-        if (data.error === "") {
-            localStorage.setItem("userId", data.UserID);
-            localStorage.setItem("householdId", data.HouseholdID);
-            navigate("/dashboard");
-        } else {
-            alert(data.error);
+        if (!username.trim() || !password.trim()) {
+            setLoginError("Please enter your username and password.");
+            return;
+        }
+
+        setLoginError("");
+        setLoginLoading(true);
+
+        try {
+            const res = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ Login: username.trim(), Password: password })
+            });
+
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                setLoginError(data.error || "Invalid login or password");
+                return;
+            }
+
+            localStorage.setItem("token", data.token || "");
+            localStorage.setItem("userId", String(data.UserID));
+            localStorage.setItem("householdId", String(data.HouseholdID ?? ""));
+            navigate("/overview");
+        } catch {
+            setLoginError("Unable to sign in right now. Please try again.");
+        } finally {
+            setLoginLoading(false);
         }
     };
 
@@ -118,7 +137,10 @@ export default function LoginPage() {
                     type="text"
                     placeholder="your username"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                        setUsername(e.target.value);
+                        if (loginError) setLoginError("");
+                    }}
                     onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 />
 
@@ -128,12 +150,17 @@ export default function LoginPage() {
                     type="password"
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (loginError) setLoginError("");
+                    }}
                     onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 />
 
-                <button className="btn-main" onClick={handleLogin}>
-                    Sign in
+                {loginError && <div className="auth-error">{loginError}</div>}
+
+                <button className="btn-main" onClick={handleLogin} disabled={loginLoading}>
+                    {loginLoading ? "Signing in..." : "Sign in"}
                 </button>
                 <div className="divider">or</div>
                 <button className="btn-sec" onClick={() => navigate("/register")}>

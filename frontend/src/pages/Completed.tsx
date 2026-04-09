@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
-export default function Dashboard() {
+export default function Completed() {
     const navigate = useNavigate();
-    const location = useLocation();
 
     const userId = Number(localStorage.getItem("userId"));
     const householdId = Number(localStorage.getItem("householdId"));
 
-    const [openChores, setOpenChores] = useState<any[]>([]);
+    const [completedChores, setCompletedChores] = useState<any[]>([]);
     const [housemates, setHousemates] = useState<any[]>([]);
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
@@ -24,13 +23,15 @@ export default function Dashboard() {
         RepeatFrequency: "weekly"
     });
 
-    const fetchOpenChores = async () => {
+    const fetchCompleted = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
+            const res = await fetch(
+                `http://localhost:5000/api/chores/completed?HouseholdID=${householdId}&UserID=${userId}`
+            );
             const data = await res.json();
-            if (data.error === "") setOpenChores(data.results || []);
+            if (data.error === "" || !data.error) setCompletedChores(data.results || []);
         } catch (e) {
-            console.log("Failed to fetch open chores:", e);
+            console.log("Failed to fetch completed chores:", e);
         }
     };
 
@@ -64,32 +65,13 @@ export default function Dashboard() {
         }
     };
 
-    const fetchAll = () => {
-        fetchOpenChores();
+    useEffect(() => {
+        if (!userId || !householdId) return;
+        fetchCompleted();
         fetchHousemates();
         fetchUser();
         fetchHousehold();
-    };
-
-    useEffect(() => {
-        if (!userId || !householdId) return;
-        fetchAll();
     }, [userId, householdId]);
-
-    useEffect(() => {
-        const tab = new URLSearchParams(location.search).get("tab");
-        if ((tab || "").toLowerCase() === "completed") {
-            navigate("/completed", { replace: true });
-        }
-    }, [location.search, navigate]);
-
-    useEffect(() => {
-        const state = location.state as { openCreate?: boolean } | null;
-        if (state?.openCreate) {
-            setShowModal(true);
-            navigate("/dashboard", { replace: true });
-        }
-    }, [location.state, navigate]);
 
     const getAvatarStyle = (name: string) => {
         const colors = [
@@ -111,6 +93,12 @@ export default function Dashboard() {
 
     const getDisplayName = (mate: any) =>
         mate.FirstName ? `${mate.FirstName} ${mate.LastName || ""}`.trim() : mate.Login || "Unknown";
+
+    const getDisplayNameById = (id: number | null) => {
+        if (!id) return "Unknown";
+        const mate = housemates.find((u: any) => Number(u.UserID) === Number(id));
+        return mate ? getDisplayName(mate) : `User #${id}`;
+    };
 
     const handleChange = (e: any) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -169,43 +157,23 @@ export default function Dashboard() {
             }
 
             resetModal();
-            fetchOpenChores();
         } catch (e) {
             console.log("Error creating chore:", e);
         }
     };
 
-    const handleClaim = async (choreId: number) => {
-        try {
-            await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ AssignedToUserID: userId })
-            });
-            fetchOpenChores();
-        } catch (e) {
-            console.log("Failed to claim chore:", e);
-        }
-    };
-
     return (
-        <div className="dash" role="main" aria-label="Open chores">
+        <div className="dash" role="main" aria-label="Completed chores">
             <div className="sidebar" role="navigation" aria-label="Primary navigation">
                 <div className="sb-brand">Our<em>Place</em></div>
 
                 <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
-                <div className="sb-item" onClick={() => navigate("/overview")}>
-                    📊 Overview
-                </div>
-
-                <div className="sb-item active" aria-pressed="true">
-                    📋 Open Chores
-                </div>
-
+                <div className="sb-item" onClick={() => navigate("/overview")}>📊 Overview</div>
+                <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
                 <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
-                <div className="sb-item" onClick={() => navigate("/completed")}>🏁 Completed</div>
+                <div className="sb-item active">🏁 Completed</div>
                 <div className="sb-item" onClick={() => navigate("/recurring")}>🔁 Recurring</div>
                 <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
 
@@ -244,43 +212,48 @@ export default function Dashboard() {
                             })}
                         </div>
                     </div>
-                    <button type="button" className="tb-btn" onClick={() => setShowModal(true)}>
+                    <button
+                        type="button"
+                        className="tb-btn"
+                        onClick={() => setShowModal(true)}
+                    >
                         + Create Chore
                     </button>
                 </div>
 
                 <div className="content">
-                    <div className="section-label">OPEN CHORES</div>
+                    <div className="section-label">COMPLETED CHORES</div>
 
-                    {openChores.length === 0 ? (
+                    {completedChores.length === 0 ? (
                         <div className="empty-state">
-                            <div className="empty-icon">🎉</div>
-                            <div className="empty-text">No open chores right now!</div>
+                            <div className="empty-icon">🏁</div>
+                            <div className="empty-text">No completed chores yet.</div>
                         </div>
                     ) : (
                         <div className="cards">
-                            {openChores.map((chore: any) => (
+                            {completedChores.map((chore: any) => (
                                 <div className="card" key={chore.ChoreID}>
                                     <div className="card-body">
                                         <div className="card-title">{chore.Title}</div>
                                         <div className="card-meta">
                                             {chore.Description || "No description"}
-                                            {chore.DueDate && (
+                                            {chore.CompletedAt && (
                                                 <>
                                                     <br />
-                                                    Due: {chore.DueDate}
+                                                    Completed: {new Date(chore.CompletedAt).toLocaleString()}
+                                                </>
+                                            )}
+                                            {chore.CompletedByUserID && (
+                                                <>
+                                                    <br />
+                                                    Completed by: {getDisplayNameById(chore.CompletedByUserID)}
                                                 </>
                                             )}
                                         </div>
                                     </div>
 
                                     <div className="card-right">
-                                        <span className={`priority p-${chore.Priority?.toLowerCase()}`}>
-                                            {chore.Priority}
-                                        </span>
-                                        <button type="button" className="claim-btn" onClick={() => handleClaim(chore.ChoreID)}>
-                                            Claim
-                                        </button>
+                                        <span className="priority p-low">Completed</span>
                                     </div>
                                 </div>
                             ))}

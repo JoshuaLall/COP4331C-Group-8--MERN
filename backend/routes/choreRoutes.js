@@ -177,8 +177,8 @@ module.exports = function (db) {
         CompletedByUserID: userId,
         Status: 'completed'
       })
-      .sort({ CompletedAt: -1 })
-      .toArray();
+        .sort({ CompletedAt: -1 })
+        .toArray();
 
       res.status(200).json({ error: "", results });
     } catch (e) {
@@ -312,6 +312,96 @@ module.exports = function (db) {
         return res.status(400).json({ error: 'CompletedByUserID is required' });
       }
 
+      const nowIso = new Date().toISOString();
+
+      const incrementDueDate = (baseDate, frequency, interval) => {
+        const next = new Date(baseDate);
+        const step = Number(interval) || 1;
+
+        if (frequency === 'daily') {
+          next.setDate(next.getDate() + step);
+        } else if (frequency === 'weekly') {
+          next.setDate(next.getDate() + 7 * step);
+        } else if (frequency === 'monthly') {
+          next.setMonth(next.getMonth() + step);
+        } else {
+          next.setDate(next.getDate() + step);
+        }
+
+        return next;
+      };
+
+      // For recurring chores, create the next instance first so completion cannot
+      // accidentally remove the only active occurrence.
+      if (chore && chore.IsRecurring && chore.RecurringTemplateID) {
+        const template = await db.collection('RecurringChores').findOne({
+          RecurringTemplateID: chore.RecurringTemplateID
+        });
+
+        if (template && template.IsActive) {
+          const templateBase = new Date(template.NextDueDate);
+          const choreBase = chore.DueDate ? new Date(chore.DueDate) : null;
+          const fallbackBase = new Date();
+
+          const baseDate = Number.isNaN(templateBase.getTime())
+            ? (choreBase && !Number.isNaN(choreBase.getTime()) ? choreBase : fallbackBase)
+            : templateBase;
+
+          const nextDueDateObj = incrementDueDate(
+            baseDate,
+            template.RepeatFrequency,
+            template.RepeatInterval
+          );
+          const nextDueDate = nextDueDateObj.toISOString().split('T')[0];
+
+          const existingNext = await db.collection('Chores').findOne({
+            RecurringTemplateID: template.RecurringTemplateID,
+            DueDate: nextDueDate,
+            Status: { $ne: 'completed' }
+          });
+
+          if (!existingNext) {
+            const lastChore = await db.collection('Chores')
+              .find({})
+              .sort({ ChoreID: -1 })
+              .limit(1)
+              .toArray();
+
+            const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
+
+            await db.collection('Chores').insertOne({
+              ChoreID: newChoreID,
+              HouseholdID: template.HouseholdID,
+              Title: template.Title,
+              Description: template.Description || "",
+              Status: template.DefaultAssignedUserID ? 'assigned' : 'open',
+              CreatedByUserID: template.CreatedByUserID,
+              AssignedToUserID: template.DefaultAssignedUserID || null,
+              DueDate: nextDueDate,
+              Priority: (chore.Priority || 'medium').toLowerCase(),
+              IsRecurring: true,
+              RecurringTemplateID: template.RecurringTemplateID,
+              RepeatFrequency: template.RepeatFrequency,
+              RepeatInterval: template.RepeatInterval,
+              CompletedAt: null,
+              CompletedByUserID: null,
+              CreatedAt: nowIso,
+              UpdatedAt: nowIso,
+            });
+          }
+
+          await db.collection('RecurringChores').updateOne(
+            { RecurringTemplateID: template.RecurringTemplateID },
+            {
+              $set: {
+                NextDueDate: nextDueDate,
+                UpdatedAt: nowIso
+              }
+            }
+          );
+        }
+      }
+
       // update chore
       const result = await db.collection('Chores').updateOne(
         { ChoreID },
@@ -320,71 +410,13 @@ module.exports = function (db) {
             Status: 'completed',
             CompletedByUserID: Number(CompletedByUserID),
             CompletedAt: new Date(),
-            UpdatedAt: new Date().toISOString()
+            UpdatedAt: nowIso
           }
         }
       );
 
       if (result.matchedCount === 0) {
         return res.status(404).json({ error: 'Chore not found' });
-      }
-
-      if (chore && chore.IsRecurring && chore.RecurringTemplateID) {
-        const template = await db.collection('RecurringChores').findOne({
-          RecurringTemplateID: chore.RecurringTemplateID
-        });
-
-        if (template && template.IsActive) {
-          const updatedNextDue = new Date(template.NextDueDate);
-
-          if (template.RepeatFrequency === 'daily') {
-            updatedNextDue.setDate(updatedNextDue.getDate() + Number(template.RepeatInterval));
-          } else if (template.RepeatFrequency === 'weekly') {
-            updatedNextDue.setDate(updatedNextDue.getDate() + 7 * Number(template.RepeatInterval));
-          } else if (template.RepeatFrequency === 'monthly') {
-            updatedNextDue.setMonth(updatedNextDue.getMonth() + Number(template.RepeatInterval));
-          }
-
-          const lastChore = await db.collection('Chores')
-            .find({})
-            .sort({ ChoreID: -1 })
-            .limit(1)
-            .toArray();
-
-          const newChoreID = lastChore.length > 0 ? lastChore[0].ChoreID + 1 : 1;
-          const now = new Date().toISOString();
-          const nextDueDate = updatedNextDue.toISOString().split('T')[0];
-
-          await db.collection('Chores').insertOne({
-            ChoreID: newChoreID,
-            HouseholdID: template.HouseholdID,
-            Title: template.Title,
-            Description: template.Description || "",
-            Status: template.DefaultAssignedUserID ? 'assigned' : 'open',
-            CreatedByUserID: template.CreatedByUserID,
-            AssignedToUserID: template.DefaultAssignedUserID || null,
-            DueDate: nextDueDate,
-            Priority: 'medium',
-            IsRecurring: true,
-            RecurringTemplateID: template.RecurringTemplateID,
-            RepeatFrequency: template.RepeatFrequency,
-            RepeatInterval: template.RepeatInterval,
-            CompletedAt: null,
-            CompletedByUserID: null,
-            CreatedAt: now,
-            UpdatedAt: now,
-          });
-
-          await db.collection('RecurringChores').updateOne(
-            { RecurringTemplateID: template.RecurringTemplateID },
-            {
-              $set: {
-                NextDueDate: nextDueDate,
-                UpdatedAt: now
-              }
-            }
-          );
-        }
       }
 
       res.status(200).json({ error: '' });
