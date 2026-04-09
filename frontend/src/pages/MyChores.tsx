@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function MyChores() {
     const navigate = useNavigate();
 
@@ -32,7 +34,7 @@ export default function MyChores() {
     const fetchMyChores = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`
+                `${API_BASE}/chores/my?UserID=${userId}&HouseholdID=${householdId}`
             );
             const data = await res.json();
             if (data.error === "") setMyChores(data.results || []);
@@ -44,7 +46,7 @@ export default function MyChores() {
     const fetchHousemates = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/users/household/${householdId}`
+                `${API_BASE}/users/household/${householdId}`
             );
             const data = await res.json();
             if (data.error === "") setHousemates(data.results || []);
@@ -55,7 +57,7 @@ export default function MyChores() {
 
     const fetchUser = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") {
                 setCurrentUser(data.result?.FirstName || data.result?.Login || "");
@@ -67,7 +69,7 @@ export default function MyChores() {
 
     const fetchHousehold = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") {
                 setHouseName(data.result?.HouseholdName || "");
@@ -95,7 +97,7 @@ export default function MyChores() {
         try {
             if (isEdit && selectedChore) {
                 await fetch(
-                    `http://localhost:5000/api/chores/${selectedChore.ChoreID}`,
+                    `${API_BASE}/chores/${selectedChore.ChoreID}`,
                     {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -105,7 +107,7 @@ export default function MyChores() {
             } else {
                 if (isRecurring) {
                     // CREATE RECURRING TEMPLATE — shows up in Recurring.tsx
-                    await fetch("http://localhost:5000/api/recurring-chores", {
+                    await fetch(`${API_BASE}/recurring-chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -124,7 +126,7 @@ export default function MyChores() {
                     });
                 } else {
                     // NORMAL ONE-OFF CHORE
-                    await fetch("http://localhost:5000/api/chores", {
+                    await fetch(`${API_BASE}/chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -162,7 +164,7 @@ export default function MyChores() {
 
     const handleComplete = async (id: number) => {
         try {
-            await fetch(`http://localhost:5000/api/chores/${id}/complete`, {
+            await fetch(`${API_BASE}/chores/${id}/complete`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ CompletedByUserID: userId })
