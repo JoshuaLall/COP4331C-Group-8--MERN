@@ -54,6 +54,8 @@ module.exports = function (db) {
         InviteCode: household.InviteCode
       });
     } catch (e) {
+      console.error("HOUSEHOLD CREATE ERROR:", JSON.stringify(e, null, 2));
+      console.error("ERR INFO:", JSON.stringify(e.errInfo, null, 2));
       res.status(500).json({ error: e.toString() });
     }
   });

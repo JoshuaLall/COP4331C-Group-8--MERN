@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import JoinHousehold from './pages/JoinHousehold';
 import Recurring from './pages/Recurring';
 import Settings from './pages/Settings';
+import VerifyEmail from "./pages/VerifyEmail";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/join" element={<JoinHousehold />} />
         <Route path="/recurring" element={<Recurring />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
       </Routes>
     </BrowserRouter>
   );
