@@ -177,8 +177,8 @@ module.exports = function (db) {
         CompletedByUserID: userId,
         Status: 'completed'
       })
-      .sort({ CompletedAt: -1 })
-      .toArray();
+        .sort({ CompletedAt: -1 })
+        .toArray();
 
       res.status(200).json({ error: "", results });
     } catch (e) {
