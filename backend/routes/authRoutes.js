@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
 
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "avatheboss56@gmail.com",
+    pass: "htdezyjhefxwwxrv"
+  }
+});
+
 module.exports = function (db) {
 
   const getNextUserId = async () => {
@@ -18,6 +28,7 @@ module.exports = function (db) {
   // incoming: FirstName, LastName, Login, Password, Email
   // outgoing: UserID, error
   router.post('/register', async (req, res) => {
+    console.log("REGISTER ROUTE HIT");
     var error = '';
     try {
       const { FirstName, LastName, Login, Username, Password, Email } = req.body;
@@ -34,6 +45,8 @@ module.exports = function (db) {
 
       const nextUserId = await getNextUserId();
 
+      const verifyToken = Math.random().toString(36).substring(2);
+
       // create new user
       const newUser = {
         UserID: nextUserId,
@@ -43,18 +56,34 @@ module.exports = function (db) {
         Password,
         Email: Email.toLowerCase(),
         Verified: false,
-        VerifyToken: '',
+        VerifyToken: verifyToken,
         ResetToken: '',
         ResetExpires: null,
-        HouseholdID: null,
+        HouseholdId: null,
         CreatedAt: new Date().toISOString(),
         UpdatedAt: new Date().toISOString()
       };
 
       const result = await db.collection('Users').insertOne(newUser);
+
+      const verifyLink = `http://localhost:5173/verify-email?token=${verifyToken}`;
+
+      await transporter.sendMail({
+        from: "YOUR_GMAIL@gmail.com",
+        to: Email,
+        subject: "Verify your OurPlace account",
+        html: `
+          <h2>Verify your account</h2>
+          <p>Click the link below to verify your email:</p>
+          <a href="${verifyLink}">${verifyLink}</a>
+        `
+      });
+
       res.status(200).json({ UserID: nextUserId, MongoID: result.insertedId, error: '' });
 
     } catch (e) {
+      console.error("REGISTER ERROR:", JSON.stringify(e, null, 2));
+      console.error("ERR INFO:", JSON.stringify(e.errInfo, null, 2));
       res.status(500).json({ error: e.toString() });
     }
   });
