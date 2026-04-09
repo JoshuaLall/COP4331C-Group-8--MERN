@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import "../CSS/Login.css";
 
+const API_BASE = "/api";
+
 export default function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -23,7 +25,7 @@ export default function LoginPage() {
         setLoginLoading(true);
 
         try {
-            const res = await fetch("http://localhost:5000/api/auth/login", {
+            const res = await fetch(`${API_BASE}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ Login: username.trim(), Password: password })
@@ -53,7 +55,7 @@ export default function LoginPage() {
         }
         setForgotLoading(true);
         try {
-            const res = await fetch("http://localhost:5000/api/auth/forgot-password", {
+            const res = await fetch(`${API_BASE}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ Email: forgotEmail })

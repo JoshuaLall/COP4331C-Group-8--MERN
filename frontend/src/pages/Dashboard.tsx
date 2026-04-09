@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -26,7 +28,7 @@ export default function Dashboard() {
 
     const fetchOpenChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/open?HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") setOpenChores(data.results || []);
         } catch (e) {
@@ -36,7 +38,7 @@ export default function Dashboard() {
 
     const fetchHousemates = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/household/${householdId}`);
+            const res = await fetch(`${API_BASE}/users/household/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHousemates(data.results || []);
         } catch (e) {
@@ -46,7 +48,7 @@ export default function Dashboard() {
 
     const fetchUser = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") setCurrentUser(data.result?.FirstName || data.result?.Login || "");
         } catch (e) {
@@ -56,7 +58,7 @@ export default function Dashboard() {
 
     const fetchHousehold = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHouseName(data.result?.HouseholdName || "");
         } catch (e) {
@@ -137,7 +139,7 @@ export default function Dashboard() {
 
         try {
             if (isRecurring) {
-                await fetch("http://localhost:5000/api/recurring-chores", {
+                await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -153,7 +155,7 @@ export default function Dashboard() {
                     })
                 });
             } else {
-                await fetch("http://localhost:5000/api/chores", {
+                await fetch(`${API_BASE}/chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -177,7 +179,7 @@ export default function Dashboard() {
 
     const handleClaim = async (choreId: number) => {
         try {
-            await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
+            await fetch(`${API_BASE}/chores/${choreId}/claim`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ AssignedToUserID: userId })

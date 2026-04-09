@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Login.css";
 
+const API_BASE = "/api";
+
 export default function JoinHousehold() {
     const navigate = useNavigate();
 
@@ -25,7 +27,7 @@ export default function JoinHousehold() {
         }
         setLoading(true);
         try {
-            const regRes = await fetch("http://localhost:5000/api/auth/register", {
+            const regRes = await fetch(`${API_BASE}/auth/register`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -43,7 +45,7 @@ export default function JoinHousehold() {
                 return;
             }
 
-            const loginRes = await fetch("http://localhost:5000/api/auth/login", {
+            const loginRes = await fetch(`${API_BASE}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ Login: username, Password: password })
@@ -59,7 +61,7 @@ export default function JoinHousehold() {
             localStorage.setItem("token", loginData.token || "");
             localStorage.setItem("userId", String(loginData.UserID));
 
-            const joinRes = await fetch("http://localhost:5000/api/households/join", {
+            const joinRes = await fetch(`${API_BASE}/households/join`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
