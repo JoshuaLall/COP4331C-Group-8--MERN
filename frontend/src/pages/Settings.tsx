@@ -145,7 +145,6 @@ export default function Settings() {
                 if (mode === "email") {
                     setInviteMessage(`Invite sent to ${inviteEmail.trim()}.`);
                     setInviteEmail("");
-                } else {
                 }
             } else {
                 setInviteMessage("Invite created, but no code was returned.");
@@ -312,7 +311,7 @@ export default function Settings() {
                                     disabled={isInviting}
                                     type="button"
                                 >
-                                    {isInviting && inviteMode === "code" ? "Generating…" : "🔗 Get Invite Code"}
+                                    🔗 Get Invite Code
                                 </button>
                             </div>
 
@@ -375,8 +374,6 @@ export default function Settings() {
                                 <div className="card-title">👥 Household Members</div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
                                     {members.map((m) => {
-                                        const name = m.FirstName || m.Login || "?";
-                                        const style = memberColors[(name.charCodeAt(0) || 0) % memberColors.length];
                                         return (
                                             <div
                                                 key={m.UserID}
