@@ -8,6 +8,7 @@ export default function Settings() {
 
     const userId = Number(localStorage.getItem("userId"));
     const householdId = Number(localStorage.getItem("householdId"));
+    const token = localStorage.getItem("token");
 
     // ── USER ──
     const [firstName, setFirstName] = useState("");
@@ -54,9 +55,13 @@ export default function Settings() {
     // 🔹 LOAD USER + MEMBERS
     // ─────────────────────────────
     useEffect(() => {
-        if (!userId) return;
+        if (!userId || !token) return;
 
-        fetch(`http://localhost:5000/api/users/${userId}`)
+        fetch(`http://localhost:5000/api/users/${userId}`, {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        })
             .then(res => res.json())
             .then(data => {
                 if (!data.error) {
@@ -66,15 +71,23 @@ export default function Settings() {
 
                     const hId = data.result.HouseholdID;
                     if (hId) {
-                        localStorage.setItem("householdId", hId);
+                        localStorage.setItem("householdId", String(hId));
 
-                        fetch(`http://localhost:5000/api/households/${hId}`)
+                        fetch(`http://localhost:5000/api/households/${hId}`, {
+                            headers: {
+                                Authorization: "Bearer " + token
+                            }
+                        })
                             .then(res => res.json())
                             .then(hData => {
                                 if (!hData.error) setHouseName(hData.result.HouseholdName);
                             });
 
-                        fetch(`http://localhost:5000/api/users/household/${hId}`)
+                        fetch(`http://localhost:5000/api/users/household/${hId}`, {
+                            headers: {
+                                Authorization: "Bearer " + token
+                            }
+                        })
                             .then(res => res.json())
                             .then(mData => {
                                 if (!mData.error) {
@@ -85,7 +98,7 @@ export default function Settings() {
                     }
                 }
             });
-    }, [userId]);
+    }, [userId, token]);
 
     // ─────────────────────────────
     // 🔹 UPDATE USER
@@ -94,7 +107,10 @@ export default function Settings() {
         try {
             const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + token
+                },
                 body: JSON.stringify({ FirstName: firstName, LastName: lastName, Email: email })
             });
             const data = await res.json();
@@ -130,7 +146,10 @@ export default function Settings() {
                 `http://localhost:5000/api/households/${householdId}/invite`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: "Bearer " + token
+                    },
                     body: JSON.stringify(body)
                 }
             );
@@ -182,6 +201,7 @@ export default function Settings() {
     const handleSignOut = () => {
         localStorage.removeItem("userId");
         localStorage.removeItem("householdId");
+        localStorage.removeItem("token");
         navigate("/");
     };
 
@@ -295,7 +315,6 @@ export default function Settings() {
                         <div className="card-body">
                             <div className="card-title">🏠 Invite a Housemate</div>
 
-                            {/* Mode toggle */}
                             <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
                                 <button
                                     className={inviteMode === "email" ? "tb-btn" : "modal-cancel"}
@@ -319,7 +338,6 @@ export default function Settings() {
                                 </button>
                             </div>
 
-                            {/* Email input row (code mode has no extra UI — code appears below) */}
                             {inviteMode === "email" && (
                                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                                     <input
@@ -336,7 +354,6 @@ export default function Settings() {
                                 </div>
                             )}
 
-                            {/* Invite code reveal */}
                             {inviteMode === "code" && inviteCode && (
                                 <div style={{
                                     padding: "14px 16px",
@@ -362,7 +379,6 @@ export default function Settings() {
                                 </div>
                             )}
 
-                            {/* Status message */}
                             {inviteMessage && (
                                 <div style={{ marginTop: "10px", fontSize: "14px", opacity: 0.8 }}>
                                     {inviteMessage}
