@@ -1,4 +1,5 @@
 const express = require('express');
+const { Int32 } = require('mongodb');
 const router = express.Router();
 const nodemailer = require("nodemailer");
 
@@ -41,7 +42,7 @@ module.exports = function (db) {
             const verifyToken = Math.random().toString(36).substring(2);
 
             const newUser = {
-                UserID: nextUserId,
+                UserID: new Int32(nextUserId),
                 FirstName,
                 LastName: LastName || '',
                 Login: normalizedLogin,
@@ -70,7 +71,7 @@ module.exports = function (db) {
                 `
             });
 
-            res.status(200).json({ UserID: nextUserId, MongoID: result.insertedId, error: '' });
+            res.status(200).json({ UserID: new Int32(nextUserId), MongoID: result.insertedId, error: '' });
         } catch (e) {
             console.error("REGISTER ERROR:", JSON.stringify(e, null, 2));
             res.status(500).json({ error: e.toString() });
@@ -121,11 +122,11 @@ module.exports = function (db) {
             if (!user) return res.status(400).json({ error: 'Email not found' });
 
             const ResetToken = Math.random().toString(36).substring(2);
-            const ResetExpires = new Date(Date.now() + 3600000).toISOString();
+            const ResetExpires = new Date(Date.now() + 3600000);
 
             await db.collection('Users').updateOne(
                 { Email },
-                { $set: { ResetToken, ResetExpires } }
+                { $set: { ResetToken, ResetExpires } },
             );
 
             // ← was missing entirely — now actually sends the email
