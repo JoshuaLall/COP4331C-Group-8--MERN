@@ -37,31 +37,45 @@ export default function JoinHousehold() {
                 })
             });
             const regData = await regRes.json();
-            if (regData.error !== "") {
-                alert(regData.error);
+            if (!regRes.ok || regData.error !== "") {
+                alert(regData.error || "Registration failed.");
                 setLoading(false);
                 return;
             }
 
-            const newUserId = regData.UserID;
+            const loginRes = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ Login: username, Password: password })
+            });
+            const loginData = await loginRes.json();
+
+            if (!loginRes.ok || loginData.error !== "") {
+                alert(loginData.error || "Unable to log in after registration.");
+                setLoading(false);
+                return;
+            }
+
+            localStorage.setItem("token", loginData.token || "");
+            localStorage.setItem("userId", String(loginData.UserID));
 
             const joinRes = await fetch("http://localhost:5000/api/households/join", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     InviteCode: inviteCode,
-                    UserID: newUserId
+                    UserID: loginData.UserID
                 })
             });
             const joinData = await joinRes.json();
-            if (joinData.error !== "") {
-                alert(joinData.error);
+            if (!joinRes.ok || joinData.error !== "") {
+                alert(joinData.error || "Unable to join household.");
                 setLoading(false);
                 return;
             }
 
-            alert("You're in! Please verify your email then sign in.");
-            navigate("/");
+            localStorage.setItem("householdId", String(joinData.HouseholdID));
+            navigate("/overview");
         } catch (e) {
             alert("Something went wrong. Is the backend running?");
             console.log(e);

@@ -26,9 +26,11 @@ export default function Settings() {
     const [houseName, setHouseName] = useState("");
 
     const sideItems = [
+        { icon: "📊", label: "Overview" },
         { icon: "📋", label: "Open Chores" },
         { icon: "📌", label: "Assigned" },
         { icon: "✅", label: "My Chores" },
+        { icon: "🏁", label: "Completed" },
         { icon: "🔁", label: "Recurring" },
         { icon: "⚙️", label: "Settings" },
     ];
@@ -170,7 +172,7 @@ export default function Settings() {
     // ─────────────────────────────
     // 🔹 REMOVE USER (UI ONLY)
     // ─────────────────────────────
-    const handleRemove = (id: number) => {
+    const handleRemove = () => {
         alert("Leave Household endpoint not implemented yet");
     };
 
@@ -200,9 +202,11 @@ export default function Settings() {
                         className={`sb-item ${activeSideItem === label ? "active" : ""}`}
                         onClick={() => {
                             setActiveSideItem(label);
+                            if (label === "Overview") navigate("/overview");
                             if (label === "Open Chores") navigate("/dashboard");
                             if (label === "Assigned") navigate("/assigned");
                             if (label === "My Chores") navigate("/my-chores");
+                            if (label === "Completed") navigate("/completed");
                             if (label === "Recurring") navigate("/recurring");
                             if (label === "Settings") navigate("/settings");
                         }}
@@ -387,7 +391,7 @@ export default function Settings() {
                                                 <span style={{ fontWeight: 500, flex: 1 }}>{getDisplayName(m)}</span>
                                                 {m.UserID === userId && (
                                                     <button
-                                                        onClick={() => handleRemove(m.UserID)}
+                                                        onClick={() => handleRemove()}
                                                         style={{
                                                             fontSize: "13px",
                                                             padding: "4px 12px",

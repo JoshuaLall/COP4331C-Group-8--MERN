@@ -19,6 +19,14 @@ const HouseholdSchema = new mongoose.Schema(
     type: [Number],
     default: []
   },
+  InviteCode:
+  {
+    type: String,
+    trim: true,
+    uppercase: true,
+    unique: true,
+    sparse: true
+  },
   CreatedAt:
   {
     type: String,

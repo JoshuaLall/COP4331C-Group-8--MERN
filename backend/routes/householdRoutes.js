@@ -12,6 +12,43 @@ const transporter = nodemailer.createTransport({
 
 module.exports = function (db) {
 
+    const INVITE_CODE_LENGTH = 8;
+    const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    const generateInviteCode = () => {
+        let code = "";
+        for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
+            code += INVITE_CODE_CHARS[Math.floor(Math.random() * INVITE_CODE_CHARS.length)];
+        }
+        return code;
+    };
+
+    const isValidInviteCode = (code) =>
+        typeof code === "string" && /^[A-Z0-9]{8}$/.test(code.trim().toUpperCase());
+
+    const getUniqueInviteCode = async () => {
+        for (let attempt = 0; attempt < 25; attempt++) {
+            const code = generateInviteCode();
+            const exists = await db.collection("Households").findOne({ InviteCode: code });
+            if (!exists) return code;
+        }
+        throw new Error("Unable to generate a unique invite code");
+    };
+
+    const ensureHouseholdInviteCode = async (household) => {
+        const existingCode = (household?.InviteCode || "").toString().trim().toUpperCase();
+        if (isValidInviteCode(existingCode)) {
+            return existingCode;
+        }
+
+        const newCode = await getUniqueInviteCode();
+        await db.collection("Households").updateOne(
+            { HouseholdID: household.HouseholdID },
+            { $set: { InviteCode: newCode } }
+        );
+        return newCode;
+    };
+
     const getNextHouseholdId = async () => {
         const lastHousehold = await db
             .collection('Households')
@@ -38,12 +75,13 @@ module.exports = function (db) {
             }
 
             const newHouseholdId = await getNextHouseholdId();
+            const householdInviteCode = await getUniqueInviteCode();
 
             const household = {
                 HouseholdID: newHouseholdId,
                 HouseholdName,
                 MemberIDs: [creatorUserId],
-                InviteCode: String(newHouseholdId),
+                InviteCode: householdInviteCode,
                 CreatedAt: new Date().toISOString()
             };
 
@@ -56,7 +94,7 @@ module.exports = function (db) {
             res.status(200).json({
                 error: '',
                 HouseholdID: newHouseholdId,
-                InviteCode: household.InviteCode
+                InviteCode: householdInviteCode
             });
         } catch (e) {
             console.error("HOUSEHOLD CREATE ERROR:", JSON.stringify(e, null, 2));
@@ -73,13 +111,15 @@ module.exports = function (db) {
             const household = await db.collection('Households').findOne({ HouseholdID: householdId });
             if (!household) return res.status(404).json({ error: 'Household not found' });
 
+            const inviteCode = await ensureHouseholdInviteCode(household);
+
             res.status(200).json({
                 error: '',
                 result: {
                     HouseholdID: household.HouseholdID,
                     HouseholdName: household.HouseholdName,
                     MemberIDs: household.MemberIDs || [],
-                    InviteCode: household.InviteCode || String(household.HouseholdID)
+                    InviteCode: inviteCode
                 }
             });
         } catch (e) {
@@ -98,7 +138,7 @@ module.exports = function (db) {
             const household = await db.collection('Households').findOne({ HouseholdID: householdId });
             if (!household) return res.status(404).json({ error: 'Household not found' });
 
-            const inviteCode = household.InviteCode || String(household.HouseholdID);
+            const inviteCode = await ensureHouseholdInviteCode(household);
 
             // Send email if one was provided
             if (Email) {
@@ -144,29 +184,46 @@ module.exports = function (db) {
         try {
             const { HouseholdID, InviteCode, UserID } = req.body || {};
             const userId = Number(UserID);
-            const householdId = HouseholdID ? Number(HouseholdID) : Number(InviteCode);
+            let household = null;
 
-            if (!householdId || !userId) {
+            if (!userId || (!HouseholdID && !InviteCode)) {
                 return res.status(400).json({ error: 'HouseholdID (or InviteCode) and UserID are required' });
             }
 
-            const household = await db.collection('Households').findOne({ HouseholdID: householdId });
-            if (!household) return res.status(404).json({ error: 'Household not found' });
+            if (HouseholdID) {
+                household = await db.collection('Households').findOne({ HouseholdID: Number(HouseholdID) });
+            } else {
+                const normalizedCode = String(InviteCode).trim().toUpperCase();
+                household = await db.collection('Households').findOne({ InviteCode: normalizedCode });
+
+                // Legacy fallback for very old numeric invite codes
+                if (!household && /^\d+$/.test(normalizedCode)) {
+                    household = await db.collection('Households').findOne({ HouseholdID: Number(normalizedCode) });
+                }
+            }
+
+            if (!household) return res.status(404).json({ error: 'Invalid invite code or household not found' });
 
             const user = await db.collection('Users').findOne({ UserID: userId });
             if (!user) return res.status(404).json({ error: 'User not found' });
 
+            const householdInviteCode = await ensureHouseholdInviteCode(household);
+
             await db.collection('Users').updateOne(
                 { UserID: userId },
-                { $set: { HouseholdID: householdId, UpdatedAt: new Date().toISOString() } }
+                { $set: { HouseholdID: household.HouseholdID, UpdatedAt: new Date().toISOString() } }
             );
 
             await db.collection('Households').updateOne(
-                { HouseholdID: householdId },
+                { HouseholdID: household.HouseholdID },
                 { $addToSet: { MemberIDs: userId } }
             );
 
-            res.status(200).json({ error: '', HouseholdID: householdId });
+            res.status(200).json({
+                error: '',
+                HouseholdID: household.HouseholdID,
+                InviteCode: householdInviteCode
+            });
         } catch (e) {
             res.status(500).json({ error: e.toString() });
         }

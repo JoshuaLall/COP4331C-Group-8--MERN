@@ -9,7 +9,6 @@ export default function Recurring() {
     const householdId = Number(localStorage.getItem("householdId"));
 
     const [recurringChores, setRecurringChores] = useState<any[]>([]);
-    const [completedChores, setCompletedChores] = useState<any[]>([]);
     const [housemates, setHousemates] = useState<any[]>([]);
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
@@ -39,18 +38,6 @@ export default function Recurring() {
             if (data.error === "" || !data.error) setRecurringChores(data.results || []);
         } catch (e) {
             console.log("Failed to fetch recurring chores:", e);
-        }
-    };
-
-    const fetchCompleted = async () => {
-        try {
-            const res = await fetch(
-                `http://localhost:5000/api/chores/completed?HouseholdID=${householdId}`
-            );
-            const data = await res.json();
-            if (data.error === "" || !data.error) setCompletedChores(data.results || []);
-        } catch (e) {
-            console.log("Failed to fetch completed chores:", e);
         }
     };
 
@@ -88,7 +75,6 @@ export default function Recurring() {
 
     const fetchAll = () => {
         fetchRecurring();
-        fetchCompleted();
         fetchHousemates();
         fetchUser();
         fetchHousehold();
@@ -98,32 +84,6 @@ export default function Recurring() {
         if (!userId || !householdId) return;
         fetchAll();
     }, []);
-
-    // ================= STATS =================
-
-    const overdueCount = recurringChores.filter((c: any) => {
-        if (!c.NextDueDate) return false;
-        return new Date(c.NextDueDate) < new Date();
-    }).length;
-
-    const doneThisMonth = completedChores.filter((c: any) => {
-        if (!c.CompletedAt) return false;
-        const d = new Date(c.CompletedAt);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-
-    const stats = [
-    { num: recurringChores.length, label: "Open chores" },
-    { num: recurringChores.filter((c: any) => {
-        if (!c.NextDueDate) return false;
-        const due = new Date(c.NextDueDate);
-        const now = new Date();
-        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
-    }).length, label: "Mine today" },
-    { num: overdueCount, label: "Overdue" },
-    { num: doneThisMonth, label: "Done this month" }
-  ];
 
     // ================= HELPERS =================
 
@@ -259,15 +219,42 @@ export default function Recurring() {
             const data = await res.json();
             if (data.error !== "") return;
 
-            const allChores: any[] = data.results || [];
-            const instance = allChores
-                .filter((c: any) =>
-                    c.RecurringTemplateID === chore.RecurringTemplateID &&
-                    c.Status !== "completed"
-                )
-                .sort((a: any, b: any) =>
-                    new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
-                )[0];
+            const pickActiveInstance = (all: any[]) => {
+                const matches = all
+                    .filter((c: any) =>
+                        Number(c.RecurringTemplateID) === Number(chore.RecurringTemplateID) &&
+                        c.Status !== "completed"
+                    )
+                    .sort((a: any, b: any) => {
+                        const dueA = a.DueDate ? new Date(a.DueDate).getTime() : Number.MAX_SAFE_INTEGER;
+                        const dueB = b.DueDate ? new Date(b.DueDate).getTime() : Number.MAX_SAFE_INTEGER;
+                        if (dueA !== dueB) return dueA - dueB;
+
+                        const createdA = a.CreatedAt ? new Date(a.CreatedAt).getTime() : 0;
+                        const createdB = b.CreatedAt ? new Date(b.CreatedAt).getTime() : 0;
+                        return createdA - createdB;
+                    });
+
+                return matches[0] || null;
+            };
+
+            let instance = pickActiveInstance(data.results || []);
+
+            // Recovery path: force generation once, then try to locate active instance again.
+            if (!instance) {
+                await fetch("http://localhost:5000/api/recurring-chores/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+
+                const retryRes = await fetch(
+                    `http://localhost:5000/api/chores?HouseholdID=${householdId}`
+                );
+                const retryData = await retryRes.json();
+                if (retryData.error === "") {
+                    instance = pickActiveInstance(retryData.results || []);
+                }
+            }
 
             if (!instance) {
                 alert("No active chore instance found for this recurring chore.");
@@ -284,6 +271,10 @@ export default function Recurring() {
             );
             const completeData = await completeRes.json();
             if (completeData.error === "") {
+                await fetch("http://localhost:5000/api/recurring-chores/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
                 fetchAll();
             } else {
                 alert(completeData.error);
@@ -303,9 +294,14 @@ export default function Recurring() {
                 <div className="sb-brand">Our<em>Place</em></div>
                 <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
+                <div className="sb-item" onClick={() => navigate("/overview")}>
+                    📊 Overview
+                </div>
+
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
                 <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
+                <div className="sb-item" onClick={() => navigate("/completed")}>🏁 Completed</div>
                 <div className="sb-item active">🔁 Recurring</div>
                 <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
 
@@ -352,30 +348,6 @@ export default function Recurring() {
                 </div>
 
                 <div className="content">
-
-                    {/* Stats row — all from real data */}
-                    <div className="stats-row">
-                        {stats.map(({ num, label }) => (
-                            <div className="stat" key={label}>
-                                <div className="stat-num">{num}</div>
-                                <div className="stat-lbl">{label}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="tabs">
-                        <div className="tab" onClick={() => navigate("/dashboard")}>Open</div>
-                        <div className="tab" onClick={() => navigate("/assigned")}>Assigned</div>
-                        <div className="tab" onClick={() => navigate("/my-chores")}>My Chores</div>
-                        <div
-                            className="tab"
-                            onClick={() => navigate("/dashboard", { state: { tab: "Completed" } })}
-                        >
-                            Completed
-                        </div>
-                    </div>
-
                     <div className="section-label">RECURRING CHORES</div>
 
                     {recurringChores.length === 0 ? (

@@ -9,7 +9,6 @@ export default function Assigned() {
     const householdId = localStorage.getItem("householdId");
 
     const [assignedChores, setAssignedChores] = useState<any[]>([]);
-    const [completedChores, setCompletedChores] = useState<any[]>([]);
     const [housemates, setHousemates] = useState<any[]>([]);
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
@@ -41,19 +40,6 @@ export default function Assigned() {
             }
         } catch (e) {
             console.log("Failed to load assigned chores:", e);
-        }
-    };
-
-    const fetchCompleted = async () => {
-        if (!householdId) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/chores/completed?HouseholdID=${householdId}`);
-            const data = await res.json();
-            if (data.error === "") {
-                setCompletedChores(data.results || []);
-            }
-        } catch (e) {
-            console.log("Failed to fetch completed chores:", e);
         }
     };
 
@@ -99,37 +85,10 @@ export default function Assigned() {
     useEffect(() => {
         if (!userId || !householdId) return;
         fetchAssigned();
-        fetchCompleted();
         fetchHousemates();
         fetchCurrentUser();
         fetchHousehold();
     }, [userId, householdId]);
-
-    // ================= STATS (no hardcoding) =================
-
-    const overdueCount = assignedChores.filter((c: any) => {
-        if (!c.DueDate) return false;
-        return new Date(c.DueDate) < new Date() && c.Status !== "completed";
-    }).length;
-
-    const doneThisMonth = completedChores.filter((c: any) => {
-        if (!c.CompletedAt) return false;
-        const d = new Date(c.CompletedAt);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-
-    const stats = [
-    { num: assignedChores.length + completedChores.length, label: "Open chores" },
-    { num: assignedChores.filter((c: any) => {
-        if (!c.DueDate) return false;
-        const due = new Date(c.DueDate);
-        const now = new Date();
-        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
-    }).length, label: "Mine today" },
-    { num: overdueCount, label: "Overdue" },
-    { num: doneThisMonth, label: "Done this month" }
-  ];
 
     // ================= HELPERS =================
 
@@ -264,7 +223,6 @@ export default function Assigned() {
 
             resetModal();
             fetchAssigned();
-            fetchCompleted();
         } catch (e) {
             console.log("Submit failed:", e);
         }
@@ -281,7 +239,6 @@ export default function Assigned() {
             const data = await res.json();
             if (data.error === "") {
                 await fetchAssigned();
-                await fetchCompleted();
             } else {
                 alert(data.error);
             }
@@ -301,6 +258,10 @@ export default function Assigned() {
 
                 <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
+                <div className="sb-item" onClick={() => navigate("/overview")}>
+                    📊 Overview
+                </div>
+
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>
                     📋 Open Chores
                 </div>
@@ -311,6 +272,10 @@ export default function Assigned() {
 
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>
                     ✅ My Chores
+                </div>
+
+                <div className="sb-item" onClick={() => navigate("/completed")}>
+                    🏁 Completed
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/recurring")}>
@@ -367,30 +332,6 @@ export default function Assigned() {
                 </div>
 
                 <div className="content">
-
-                    {/* Stats row — all from real data */}
-                    <div className="stats-row">
-                        {stats.map(({ num, label }) => (
-                            <div className="stat" key={label}>
-                                <div className="stat-num">{num}</div>
-                                <div className="stat-lbl">{label}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="tabs">
-                        <div className="tab" onClick={() => navigate("/dashboard")}>Open</div>
-                        <div className="tab active">Assigned</div>
-                        <div className="tab" onClick={() => navigate("/my-chores")}>My Chores</div>
-                        <div
-                            className="tab"
-                            onClick={() => navigate("/dashboard", { state: { tab: "Completed" } })}
-                        >
-                            Completed
-                        </div>
-                    </div>
-
                     <div className="section-label">ASSIGNED TO: HOUSEMATES</div>
 
                     {assignedChores.length === 0 ? (

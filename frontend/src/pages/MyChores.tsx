@@ -213,31 +213,6 @@ export default function MyChores() {
         });
     };
 
-    // ================= STATS =================
-
-    const overdueCount = myChores.filter((c: any) =>
-        c.DueDate && new Date(c.DueDate) < new Date() && c.Status !== "completed"
-    ).length;
-    
-    const doneThisMonth = myChores.filter((c: any) => {
-        if (!c.CompletedAt) return false;
-        const d = new Date(c.CompletedAt);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-
-    const stats = [
-    { num: myChores.length, label: "Open chores" },
-    { num: myChores.filter((c: any) => {
-        if (!c.DueDate) return false;
-        const due = new Date(c.DueDate);
-        const now = new Date();
-        return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
-    }).length, label: "Mine today" },
-    { num: overdueCount, label: "Overdue" },
-    { num: doneThisMonth, label: "Done this month" }
-  ];
-
     // ================= UI =================
 
     return (
@@ -249,9 +224,13 @@ export default function MyChores() {
 
                 <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
+                <div className="sb-item" onClick={() => navigate("/overview")}>
+                    📊 Overview
+                </div>
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
                 <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
                 <div className="sb-item active">✅ My Chores</div>
+                <div className="sb-item" onClick={() => navigate("/completed")}>🏁 Completed</div>
                 <div className="sb-item" onClick={() => navigate("/recurring")}>🔁 Recurring</div>
                 <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
 
@@ -302,25 +281,6 @@ export default function MyChores() {
                 </div>
 
                 <div className="content">
-
-                    {/* Stats Row */}
-                    <div className="stats-row">
-                        {stats.map(({ num, label }) => (
-                            <div className="stat" key={label}>
-                                <div className="stat-num">{num}</div>
-                                <div className="stat-lbl">{label}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="tabs">
-                        <div className="tab" onClick={() => navigate("/dashboard")}>Open</div>
-                        <div className="tab" onClick={() => navigate("/assigned")}>Assigned</div>
-                        <div className="tab active">My Chores</div>
-                        <div className="tab" onClick={() => navigate("/dashboard?tab=completed")}>Completed</div>
-                    </div>
-
                     {/* Chore Cards */}
                     {myChores.length === 0 ? (
                         <div className="empty-state">

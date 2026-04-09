@@ -1,23 +1,27 @@
 import './CSS/App.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Dashboard from './pages/Dashboard';
-import MyChores from './pages/MyChores';
-import LoginPage from './pages/LoginPage';
-import Assigned from './pages/Assigned';
-import Register from './pages/Register';
-import JoinHousehold from './pages/JoinHousehold';
-import Recurring from './pages/Recurring';
-import Settings from './pages/Settings';
-import VerifyEmail from './pages/VerifyEmail';
-import ResetPassword from './pages/ResetPassword';
+import Dashboard from './pages/Dashboard.tsx';
+import Overview from './pages/Overview.tsx';
+import MyChores from './pages/MyChores.tsx';
+import Completed from './pages/Completed.tsx';
+import LoginPage from './pages/LoginPage.tsx';
+import Assigned from './pages/Assigned.tsx';
+import Register from './pages/Register.tsx';
+import JoinHousehold from './pages/JoinHousehold.tsx';
+import Recurring from './pages/Recurring.tsx';
+import Settings from './pages/Settings.tsx';
+import VerifyEmail from './pages/VerifyEmail.tsx';
+import ResetPassword from './pages/ResetPassword.tsx';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/overview" element={<Overview />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/my-chores" element={<MyChores />} />
+        <Route path="/completed" element={<Completed />} />
         <Route path="/assigned" element={<Assigned />} />
         <Route path="/register" element={<Register />} />
         <Route path="/join" element={<JoinHousehold />} />
