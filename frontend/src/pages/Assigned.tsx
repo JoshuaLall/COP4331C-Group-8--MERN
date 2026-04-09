@@ -177,12 +177,14 @@ export default function Assigned() {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        ...form,
-                        AssignedToUserID: form.AssignedToUserID
-                            ? Number(form.AssignedToUserID)
-                            : null
-                    })
-                });
+                         Title: form.Title,
+                         Description: form.Description,
+                         DueDate: form.DueDate || null,
+                         Priority: form.Priority,
+                         AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                         Status: form.AssignedToUserID ? "assigned" : "open"
+                        })
+                    });
             } else {
                 if (isRecurring) {
                     await fetch("http://localhost:5000/api/recurring-chores", {
