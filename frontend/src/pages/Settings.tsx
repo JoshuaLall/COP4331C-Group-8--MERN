@@ -326,7 +326,7 @@ export default function Settings() {
                                         style={{ flex: 1 }}
                                         onKeyDown={(e) => e.key === "Enter" && handleInvite()}
                                     />
-                                    <button className="tb-btn" onClick={handleInvite} disabled={isInviting}>
+                                    <button className="tb-btn" onClick={() => handleInvite()} disabled={isInviting}>
                                         {isInviting ? "Sending…" : "Send Invite"}
                                     </button>
                                 </div>
