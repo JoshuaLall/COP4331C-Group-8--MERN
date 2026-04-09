@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 
 const { MongoClient } = require('mongodb');
+const authenticateToken = require('./routes/authenticateToken');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -10,7 +12,7 @@ const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryW
 const client = new MongoClient(url);
 let db;
 
-//  Routes registered FIRST, outside async function
+// Routes registered FIRST, outside async function
 app.get('/api/ping', (req, res) => {
   res.status(200).json({ message: 'Hello World' });
 });
@@ -53,10 +55,10 @@ async function startServer() {
 
     //-- API Routes
     app.use('/api/auth', authRoutes);
-    app.use('/api/users', userRoutes);
-    app.use('/api/households', householdRoutes);
-    app.use('/api/chores', choreRoutes);
-    app.use('/api/recurring-chores', recurringChoreRoutes);
+    app.use('/api/users', authenticateToken, userRoutes);
+    app.use('/api/households', authenticateToken, householdRoutes);
+    app.use('/api/chores', authenticateToken, choreRoutes);
+    app.use('/api/recurring-chores', authenticateToken, recurringChoreRoutes);
 
     app.listen(5000, () => {
       console.log('Server running on port 5000');

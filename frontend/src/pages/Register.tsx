@@ -19,11 +19,14 @@ export default function Register() {
             alert("Please fill in all required fields.");
             return;
         }
+
         if (password !== confirm) {
             alert("Passwords do not match.");
             return;
         }
+
         setLoading(true);
+
         try {
             const regRes = await fetch("http://localhost:5000/api/auth/register", {
                 method: "POST",
@@ -36,7 +39,13 @@ export default function Register() {
                     Password: password
                 })
             });
+
+            console.log("REGISTER STATUS:", regRes.status);
+            console.log("REGISTER CONTENT-TYPE:", regRes.headers.get("content-type"));
+
             const regData = await regRes.json();
+            console.log("REGISTER RESPONSE:", regData);
+
             if (regData.error !== "") {
                 alert(regData.error);
                 setLoading(false);
@@ -44,6 +53,7 @@ export default function Register() {
             }
 
             const newUserId = regData.UserID;
+            console.log("NEW USER ID:", newUserId);
 
             const hhRes = await fetch("http://localhost:5000/api/households", {
                 method: "POST",
@@ -53,19 +63,26 @@ export default function Register() {
                     CreatedByUserID: newUserId
                 })
             });
+
+            console.log("HOUSEHOLD STATUS:", hhRes.status);
+            console.log("HOUSEHOLD CONTENT-TYPE:", hhRes.headers.get("content-type"));
+
             const hhData = await hhRes.json();
+            console.log("HOUSEHOLD RESPONSE:", hhData);
+
             if (hhData.error !== "") {
                 alert(hhData.error);
                 setLoading(false);
                 return;
             }
 
-            alert("Account created! Please check your email to verify your account, then log in.");
+            alert("Account created! Please log in.");
             navigate("/");
         } catch (e) {
+            console.log("REGISTER FLOW ERROR:", e);
             alert("Something went wrong. Is the backend running?");
-            console.log(e);
         }
+
         setLoading(false);
     };
 
@@ -208,10 +225,22 @@ export default function Register() {
                 </button>
 
                 <div className="links-row" style={{ marginTop: "16px" }}>
-                    <a href="#" onClick={() => navigate("/")}>
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            navigate("/");
+                        }}
+                    >
                         ← Back to sign in
                     </a>
-                    <a href="#" onClick={() => navigate("/join")}>
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            navigate("/join");
+                        }}
+                    >
                         Have an invite code?
                     </a>
                 </div>
