@@ -2,11 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import "../CSS/Login.css";
 
-export default function Login() {
+export default function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const navigate = useNavigate();
-
     const [showForgot, setShowForgot] = useState(false);
     const [forgotEmail, setForgotEmail] = useState("");
     const [forgotSent, setForgotSent] = useState(false);
@@ -60,7 +59,6 @@ export default function Login() {
 
     return (
         <div className="pg">
-
             <div className="scene">
                 <div className="cloud c1" />
                 <div className="cloud c2" />
@@ -111,7 +109,6 @@ export default function Login() {
                 <div className="welcome-badge">
                     <div className="dot" /> Welcome home
                 </div>
-
                 <div className="brand">Our<em>Place</em></div>
                 <div className="sub">Your shared home, organized together</div>
 
@@ -138,9 +135,7 @@ export default function Login() {
                 <button className="btn-main" onClick={handleLogin}>
                     Sign in
                 </button>
-
                 <div className="divider">or</div>
-
                 <button className="btn-sec" onClick={() => navigate("/register")}>
                     🏠 Create a new household
                 </button>
@@ -150,7 +145,7 @@ export default function Login() {
                         Forgot password?
                     </a>
                     <a href="#" onClick={(e) => { e.preventDefault(); navigate("/join"); }}>
-                        Need an invite?
+                        Have an invite code?
                     </a>
                 </div>
             </div>
@@ -158,7 +153,6 @@ export default function Login() {
             {showForgot && (
                 <div className="fp-overlay" onClick={closeForgot}>
                     <div className="fp-modal" onClick={(e) => e.stopPropagation()}>
-
                         {!forgotSent ? (
                             <>
                                 <div className="fp-icon">🔑</div>
@@ -166,7 +160,6 @@ export default function Login() {
                                 <div className="fp-sub">
                                     Enter your email and we'll send you a reset link.
                                 </div>
-
                                 <label className="lbl" style={{ textAlign: "left", width: "100%" }}>
                                     Email
                                 </label>
@@ -179,7 +172,6 @@ export default function Login() {
                                     onKeyDown={(e) => e.key === "Enter" && handleForgotPassword()}
                                     style={{ marginBottom: "16px" }}
                                 />
-
                                 <button
                                     className="btn-main"
                                     onClick={handleForgotPassword}
@@ -187,11 +179,7 @@ export default function Login() {
                                 >
                                     {forgotLoading ? "Sending..." : "Send reset link"}
                                 </button>
-
-                                <button
-                                    className="fp-cancel"
-                                    onClick={closeForgot}
-                                >
+                                <button className="fp-cancel" onClick={closeForgot}>
                                     Cancel
                                 </button>
                             </>
@@ -208,11 +196,9 @@ export default function Login() {
                                 </button>
                             </>
                         )}
-
                     </div>
                 </div>
             )}
-
         </div>
     );
 }
