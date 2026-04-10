@@ -71,6 +71,19 @@ module.exports = function (db) {
   // PUT /api/users/:id
   // incoming: FirstName, LastName, Email, Login
   // outgoing: error
+  const jwt = require('jsonwebtoken');
+  const nodemailer = require('nodemailer');
+
+  const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+
   router.put('/:id', async (req, res) => {
     try {
       const userId = Number(req.params.id);
@@ -80,25 +93,109 @@ module.exports = function (db) {
         return res.status(400).json({ error: 'UserID is required' });
       }
 
+      const user = await db.collection('Users').findOne({ UserID: userId });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
       const updateFields = {
         UpdatedAt: new Date().toISOString()
       };
 
       if (FirstName !== undefined) updateFields.FirstName = FirstName;
       if (LastName !== undefined) updateFields.LastName = LastName;
-      if (Email !== undefined) updateFields.Email = String(Email).toLowerCase();
       if (Login !== undefined) updateFields.Login = Login;
 
-      const result = await db.collection('Users').updateOne(
+      // 🔥 EMAIL CHANGE LOGIC
+      if (Email !== undefined) {
+        const normalizedEmail = String(Email).toLowerCase().trim();
+
+        // only if actually changing
+        if (normalizedEmail !== user.Email) {
+
+          // check if email already used
+          const existing = await db.collection('Users').findOne({ Email: normalizedEmail });
+          if (existing) {
+            return res.status(400).json({ error: 'Email already in use' });
+          }
+
+          // store pending email
+          updateFields.PendingEmail = normalizedEmail;
+          updateFields.EmailVerified = false;
+
+          // create token
+          const verifyToken = jwt.sign(
+            { UserID: userId, PendingEmail: normalizedEmail },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+          );
+
+          const verifyLink = `http://localhost:5173/verify-email-change?token=${verifyToken}`;
+
+          // send email
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: normalizedEmail,
+            subject: 'Verify your new email',
+            html: `
+              <h2>Confirm your new email</h2>
+              <p>Click below to confirm your email change:</p>
+              <a href="${verifyLink}" style="
+                display:inline-block;
+                padding:12px 20px;
+                background:#4CAF50;
+                color:white;
+                text-decoration:none;
+                border-radius:8px;
+                font-weight:bold;
+              ">Verify Email</a>
+            `
+          });
+        }
+      }
+
+      await db.collection('Users').updateOne(
         { UserID: userId },
         { $set: updateFields }
       );
 
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: 'User not found' });
+      res.status(200).json({ error: '' });
+
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  // Verify email change
+  router.post('/verify-email-change', async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ error: 'Missing token' });
       }
 
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      await db.collection('Users').updateOne(
+        { UserID: decoded.UserID },
+        {
+          $set: {
+            Email: decoded.PendingEmail,
+            PendingEmail: null,
+            EmailVerified: true,
+            UpdatedAt: new Date().toISOString()
+          }
+        }
+      );
+
       res.status(200).json({ error: '' });
+
     } catch (e) {
       res.status(500).json({ error: e.toString() });
     }

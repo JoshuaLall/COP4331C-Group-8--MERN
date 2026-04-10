@@ -97,13 +97,35 @@ export default function Settings() {
             const res = await fetch(`${API_BASE}/users/${userId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ FirstName: firstName, LastName: lastName, Email: email })
+                body: JSON.stringify({
+                    FirstName: firstName,
+                    LastName: lastName,
+                    Email: email
+                })
             });
+
             const data = await res.json();
+
             if (data.error) {
                 setSaveMessage("❌ " + data.error);
             } else {
-                setSaveMessage("✅ Profile updated!");
+                setMembers(prev =>
+                    prev.map(m =>
+                        m.UserID === userId
+                            ? { ...m, FirstName: firstName, LastName: lastName, Email: email }
+                            : m
+                    )
+                );
+
+                setHousemates(prev =>
+                    prev.map(m =>
+                        m.UserID === userId
+                            ? { ...m, FirstName: firstName, LastName: lastName, Email: email }
+                            : m
+                    )
+                );
+
+                setSaveMessage("📩 Check your new email to confirm the change.");
                 setTimeout(() => setSaveMessage(""), 3000);
             }
         } catch (err) {
