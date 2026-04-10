@@ -5,8 +5,8 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: "avatheboss56@gmail.com",
-        pass: "htdezyjhefxwwxrv"
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -146,7 +146,7 @@ module.exports = function (db) {
                     return res.status(400).json({ error: "This person is already a member of your household." });
                 }
 
-                const joinLink = `http://localhost:5173/join`;
+                const joinLink = `http://localhost:5173/join?code=${inviteCode}&email=${encodeURIComponent(Email)}`;
                 await transporter.sendMail({
                     from: "avatheboss56@gmail.com",
                     to: Email,

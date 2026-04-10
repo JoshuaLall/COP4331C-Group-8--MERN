@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Login.css";
 
@@ -15,6 +16,15 @@ export default function JoinHousehold() {
     const [confirm, setConfirm] = useState("");
     const [inviteCode, setInviteCode] = useState("");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+
+        if (code) {
+            setInviteCode(code.toUpperCase());
+        }
+    }, []);
 
     const handleJoin = async () => {
         if (!firstName || !username || !email || !password || !inviteCode) {
@@ -38,7 +48,8 @@ export default function JoinHousehold() {
                     LastName: lastName,
                     Login: username,
                     Email: email,
-                    Password: password
+                    Password: password,
+                    InviteCode: inviteCode
                 })
             });
 
@@ -50,10 +61,8 @@ export default function JoinHousehold() {
                 return;
             }
 
-            localStorage.setItem("pendingInviteCode", inviteCode.toUpperCase());
-
-            alert("Account created! Please verify your email before logging in. After you log in, you can use your invite code to join the household.");
-            navigate("/");
+            alert("Account created! Please verify your email before logging in.");
+            navigate(`/?code=${inviteCode}`);
         } catch (e) {
             alert("Something went wrong. Is the backend running?");
             console.log(e);
@@ -116,7 +125,7 @@ export default function JoinHousehold() {
                 </div>
 
                 <div className="brand">Our<em>Place</em></div>
-                <div className="sub">Create your account, verify your email, then log in to join with your invite code</div>
+                <div className="sub">Create your account and verify your email to join household</div>
 
                 <div className="inp-row">
                     <div className="inp-col">
@@ -205,7 +214,7 @@ export default function JoinHousehold() {
                         href="#"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate("/");
+                            navigate(`/?code=${inviteCode}`);
                         }}
                     >
                         ← Back to sign in

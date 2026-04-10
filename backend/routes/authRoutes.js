@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
 module.exports = function (db) {
 
   // POST /api/auth/register
-  // incoming: FirstName, LastName, Email, Login, Password
+  // incoming: FirstName, LastName, Email, Login, Password, InviteCode (optional)
   // outgoing: UserID, error
   router.post('/register', async (req, res) => {
     try {
@@ -25,7 +25,8 @@ module.exports = function (db) {
         LastName,
         Email,
         Login,
-        Password
+        Password,
+        InviteCode
       } = req.body;
 
       if (!FirstName || !Email || !Login || !Password) {
@@ -33,6 +34,19 @@ module.exports = function (db) {
       }
 
       const normalizedEmail = String(Email).toLowerCase().trim();
+
+      let invitedHousehold = null;
+      if (InviteCode) {
+        const normalizedInviteCode = String(InviteCode).trim().toUpperCase();
+
+        invitedHousehold = await db.collection('Households').findOne({
+          InviteCode: normalizedInviteCode
+        });
+
+        if (!invitedHousehold) {
+          return res.status(400).json({ error: 'Invalid invite code', UserID: -1 });
+        }
+      }
 
       const existingLogin = await db.collection('Users').findOne({ Login });
       if (existingLogin) {
@@ -55,31 +69,35 @@ module.exports = function (db) {
 
       const hashedPassword = await bcrypt.hash(Password, 10);
 
-      // get next household id
-      const lastHousehold = await db
-        .collection('Households')
-        .find({ HouseholdID: { $exists: true } })
-        .sort({ HouseholdID: -1 })
-        .limit(1)
-        .toArray();
+      let finalHouseholdId;
 
-      const newHouseholdId = lastHousehold.length > 0
-        ? Number(lastHousehold[0].HouseholdID) + 1
-        : 1;
+      if (invitedHousehold) {
+        finalHouseholdId = invitedHousehold.HouseholdID;
+      } else {
+        const lastHousehold = await db
+          .collection('Households')
+          .find({ HouseholdID: { $exists: true } })
+          .sort({ HouseholdID: -1 })
+          .limit(1)
+          .toArray();
 
-      // generate invite code
-      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const newHouseholdId = lastHousehold.length > 0
+          ? Number(lastHousehold[0].HouseholdID) + 1
+          : 1;
 
-      // create household FIRST
-      await db.collection('Households').insertOne({
-        HouseholdID: newHouseholdId,
-        HouseholdName: `${FirstName}'s Household`,
-        MemberIDs: [newUserID],
-        InviteCode: inviteCode,
-        CreatedAt: new Date().toISOString()
-      });
+        const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // create user WITH household
+        await db.collection('Households').insertOne({
+          HouseholdID: newHouseholdId,
+          HouseholdName: `${FirstName}'s Household`,
+          MemberIDs: [newUserID],
+          InviteCode: inviteCode,
+          CreatedAt: new Date().toISOString()
+        });
+
+        finalHouseholdId = newHouseholdId;
+      }
+
       await db.collection('Users').insertOne({
         UserID: newUserID,
         FirstName,
@@ -87,10 +105,17 @@ module.exports = function (db) {
         Email: normalizedEmail,
         Login,
         Password: hashedPassword,
-        HouseholdID: newHouseholdId,
+        HouseholdID: finalHouseholdId,
         EmailVerified: false,
         UpdatedAt: new Date().toISOString()
       });
+
+      if (invitedHousehold) {
+        await db.collection('Households').updateOne(
+          { HouseholdID: finalHouseholdId },
+          { $addToSet: { MemberIDs: newUserID } }
+        );
+      }
 
       const verifyToken = jwt.sign(
         { UserID: newUserID },

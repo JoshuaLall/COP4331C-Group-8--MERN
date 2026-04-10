@@ -40,7 +40,23 @@ export default function LoginPage() {
             localStorage.setItem("token", data.token || "");
             localStorage.setItem("userId", String(data.UserID));
             localStorage.setItem("householdId", String(data.HouseholdID ?? ""));
+            
+            const params = new URLSearchParams(window.location.search);
+            const inviteCode = params.get("code");
+
+            if (inviteCode) {
+                await fetch(`${API_BASE}/households/join`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        InviteCode: inviteCode,
+                        UserID: data.UserID
+                    })
+                });
+            }
+
             navigate("/overview");
+            
         } catch {
             setLoginError("Unable to sign in right now. Please try again.");
         } finally {
