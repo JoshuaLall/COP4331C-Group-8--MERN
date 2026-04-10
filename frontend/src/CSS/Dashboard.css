@@ -37,8 +37,8 @@
 }
 
 .sb-house {
-    font-size: 11px;
-    color: #C4B09A;
+    font-size: 14px;
+    color: #eae4de;
     margin-bottom: 28px;
     font-weight: 500;
 }
@@ -50,7 +50,7 @@
     padding: 9px 12px;
     border-radius: 10px;
     font-size: 13px;
-    color: #C4B09A;
+    color: #eae4de;
     cursor: pointer;
     margin-bottom: 2px;
     font-weight: 500;
@@ -84,7 +84,7 @@
 
 .sb-mates-label {
     font-size: 10px;
-    color: #A89078;
+    color: #eae4de;
     font-weight: 600;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -112,7 +112,7 @@
 
 .mate-name {
     font-size: 12px;
-    color: #A89078;
+    color: #eae4de;
 }
 
 .dot-on {
@@ -125,7 +125,7 @@
 
 .sb-empty-mates {
     font-size: 12px;
-    color: #A89078;
+    color: #eae4de;
     font-style: italic;
 }
 

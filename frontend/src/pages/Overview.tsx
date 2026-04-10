@@ -110,6 +110,21 @@ export default function Overview() {
         fetchHousehold();
     }, [userId, householdId]);
 
+    useEffect(() => {
+        const handleUpdate = () => {
+            fetchOpenChores();
+            fetchAssignedChores();
+            fetchMyChores();
+            fetchCompletedChores();
+        };
+        window.addEventListener("choresUpdated", handleUpdate);
+        window.addEventListener("focus", handleUpdate);
+        return () => {
+            window.removeEventListener("choresUpdated", handleUpdate);
+            window.removeEventListener("focus", handleUpdate);
+        };
+    }, [userId, householdId]);
+
     const overdueCount = [...openChores, ...assignedChores].filter((c: any) => {
         if (!c.DueDate) return false;
         const [year, month, day] = c.DueDate.split("T")[0].split("-").map(Number);
@@ -308,7 +323,7 @@ export default function Overview() {
                 <div className="topbar">
                     <div>
                         <div className="topbar-greet">
-                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
+                            Hello{currentUser ? `, ${currentUser}` : ""} 👋
                         </div>
                         <div className="topbar-sub">
                             {new Date().toLocaleDateString("en-US", {

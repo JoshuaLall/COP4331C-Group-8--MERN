@@ -217,7 +217,7 @@ module.exports = function (db) {
   router.put('/:id', async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
-      const { Title, Description, DueDate, Priority } = req.body;
+      const { Title, Description, DueDate, Priority, AssignedToUserID } = req.body; //Added AssignedToUserID
 
       if (!ChoreID) {
         return res.status(400).json({ error: 'ChoreID is required' });
@@ -231,6 +231,9 @@ module.exports = function (db) {
       if (Description) updateFields.Description = Description;
       if (DueDate !== undefined) updateFields.DueDate = DueDate;
       if (Priority) updateFields.Priority = Priority.toLowerCase();
+      //Added the following two lines to allow changined the chore from one assigned user to another or to unassign a chore.
+      if (AssignedToUserID !== undefined) updateFields.AssignedToUserID = AssignedToUserID ? Number(AssignedToUserID) : null;
+      if (AssignedToUserID !== undefined) updateFields.Status = AssignedToUserID ? "assigned" : "open";
 
       const result = await db.collection('Chores').updateOne(
         { ChoreID },
