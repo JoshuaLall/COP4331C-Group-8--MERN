@@ -165,7 +165,7 @@ module.exports = function (db, authenticateToken) {
       );
 
       const verifyLink = `http://localhost:5173/verify-email?token=${verifyToken}`;
-
+      /*
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: normalizedEmail,
@@ -185,6 +185,7 @@ module.exports = function (db, authenticateToken) {
           <p style="margin-top:16px;">This link expires in 24 hours.</p>
         `
       });
+      */
 
       res.status(200).json({ error: '', UserID: newUserID });
     } catch (e) {
