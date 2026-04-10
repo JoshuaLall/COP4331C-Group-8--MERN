@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Login.css";
+import { getPasswordStrength, validatePassword } from "../utils/passwordValidation";
 
 const API_BASE = "/api";
 
@@ -16,6 +17,8 @@ export default function JoinHousehold() {
     const [confirm, setConfirm] = useState("");
     const [inviteCode, setInviteCode] = useState("");
     const [loading, setLoading] = useState(false);
+    const passwordError = validatePassword(password);
+    const passwordStrength = getPasswordStrength(password);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -34,6 +37,11 @@ export default function JoinHousehold() {
 
         if (password !== confirm) {
             alert("Passwords do not match.");
+            return;
+        }
+
+        if (passwordError) {
+            alert(passwordError);
             return;
         }
 
@@ -187,6 +195,13 @@ export default function JoinHousehold() {
                         />
                     </div>
                 </div>
+
+                {password && (
+                    <div style={{ marginTop: "8px", fontSize: "14px", color: "#5b4636" }}>
+                        <div>Password strength: <strong>{passwordStrength}</strong></div>
+                        {passwordError && <div style={{ color: "#c0392b", marginTop: "4px" }}>{passwordError}</div>}
+                    </div>
+                )}
 
                 <div className="household-divider">
                     <span>🔑 Your Invite Code</span>

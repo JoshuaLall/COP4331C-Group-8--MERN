@@ -13,7 +13,43 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-module.exports = function (db) {
+function validatePassword(password) {
+  if (typeof password !== 'string' || password.length === 0) {
+    return 'Password is required';
+  }
+
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters.';
+  }
+
+  if (password.length > 72) {
+    return 'Password must be 72 characters or fewer.';
+  }
+
+  if (/\s/.test(password)) {
+    return 'Password cannot contain spaces.';
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return 'Password must include at least one lowercase letter.';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must include at least one uppercase letter.';
+  }
+
+  if (!/\d/.test(password)) {
+    return 'Password must include at least one number.';
+  }
+
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return 'Password must include at least one special character.';
+  }
+
+  return '';
+}
+
+module.exports = function (db, authenticateToken) {
 
   // POST /api/auth/register
   // incoming: FirstName, LastName, Email, Login, Password, InviteCode (optional)
@@ -31,6 +67,11 @@ module.exports = function (db) {
 
       if (!FirstName || !Email || !Login || !Password) {
         return res.status(400).json({ error: 'Missing required fields', UserID: -1 });
+      }
+
+      const passwordError = validatePassword(Password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError, UserID: -1 });
       }
 
       const normalizedEmail = String(Email).toLowerCase().trim();
@@ -254,6 +295,44 @@ module.exports = function (db) {
     }
   });
 
+  router.post("/change-password", authenticateToken, async (req, res) => {
+    try {
+      const { CurrentPassword, NewPassword } = req.body;
+
+      if (!CurrentPassword || !NewPassword) {
+        return res.status(400).json({ error: "Missing fields" });
+      }
+
+      const user = await db.collection("Users").findOne({
+        UserID: req.user.UserID
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const isValid = await bcrypt.compare(CurrentPassword, user.Password);
+
+      if (!isValid) {
+        return res.status(400).json({ error: "Incorrect current password" });
+      }
+
+      const hashedPassword = await bcrypt.hash(NewPassword, 10);
+
+      await db.collection("Users").updateOne(
+        { UserID: req.user.UserID },
+        { $set: { Password: hashedPassword } }
+      );
+
+      res.status(200).json({ error: "" });
+
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+
   // POST /api/auth/forgot-password
   router.post('/forgot-password', async (req, res) => {
     try {
@@ -314,6 +393,11 @@ module.exports = function (db) {
 
       if (!ResetToken || !Password) {
         return res.status(400).json({ error: 'ResetToken and Password are required' });
+      }
+
+      const passwordError = validatePassword(Password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
       }
 
       let decoded;

@@ -1,8 +1,25 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Login.css";
 
 const API_BASE = "/api";
+
+type PasswordCheck = {
+    label: string;
+    passed: boolean;
+};
+
+function getPasswordChecks(password: string): PasswordCheck[] {
+    return [
+        { label: "At least 8 characters", passed: password.length >= 8 },
+        { label: "72 characters or fewer", passed: password.length <= 72 },
+        { label: "At least one uppercase letter", passed: /[A-Z]/.test(password) },
+        { label: "At least one lowercase letter", passed: /[a-z]/.test(password) },
+        { label: "At least one number", passed: /\d/.test(password) },
+        { label: "At least one special character", passed: /[^A-Za-z0-9]/.test(password) },
+        { label: "No spaces", passed: !/\s/.test(password) },
+    ];
+}
 
 export default function Register() {
     const navigate = useNavigate();
@@ -15,6 +32,8 @@ export default function Register() {
     const [confirm, setConfirm] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
+
     const handleRegister = async () => {
         if (!firstName || !username || !email || !password) {
             alert("Please fill in all required fields.");
@@ -23,6 +42,12 @@ export default function Register() {
 
         if (password !== confirm) {
             alert("Passwords do not match.");
+            return;
+        }
+
+        const hasFailedCheck = passwordChecks.some((check) => !check.passed);
+        if (hasFailedCheck) {
+            alert("Password does not meet all requirements.");
             return;
         }
 
@@ -162,7 +187,24 @@ export default function Register() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
+
+                        <div style={{ marginTop: "10px" }}>
+                            {passwordChecks.map((check, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        color: check.passed ? "#1e8e3e" : "#c0392b",
+                                        fontSize: "13px",
+                                        marginTop: "4px",
+                                        lineHeight: "1.3"
+                                    }}
+                                >
+                                    {check.passed ? "✓" : "✗"} {check.label}
+                                </div>
+                            ))}
+                        </div>
                     </div>
+
                     <div className="inp-col">
                         <label className="lbl">Confirm *</label>
                         <input

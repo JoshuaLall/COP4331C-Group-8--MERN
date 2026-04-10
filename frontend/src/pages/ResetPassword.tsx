@@ -1,8 +1,25 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "../CSS/Login.css";
 
 const API_BASE = "/api";
+
+type PasswordCheck = {
+    label: string;
+    passed: boolean;
+};
+
+function getPasswordChecks(password: string): PasswordCheck[] {
+    return [
+        { label: "At least 8 characters", passed: password.length >= 8 },
+        { label: "72 characters or fewer", passed: password.length <= 72 },
+        { label: "At least one uppercase letter", passed: /[A-Z]/.test(password) },
+        { label: "At least one lowercase letter", passed: /[a-z]/.test(password) },
+        { label: "At least one number", passed: /\d/.test(password) },
+        { label: "At least one special character", passed: /[^A-Za-z0-9]/.test(password) },
+        { label: "No spaces", passed: !/\s/.test(password) },
+    ];
+}
 
 export default function ResetPassword() {
     const [searchParams] = useSearchParams();
@@ -15,12 +32,17 @@ export default function ResetPassword() {
     const [done, setDone] = useState(false);
     const [error, setError] = useState("");
 
+    const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
+
     const handleReset = async () => {
         setError("");
 
         if (!password) return setError("Please enter a new password.");
         if (password !== confirm) return setError("Passwords don't match.");
         if (!token) return setError("Invalid or missing reset token.");
+
+        const hasFailedCheck = passwordChecks.some((check) => !check.passed);
+        if (hasFailedCheck) return setError("Password does not meet all requirements.");
 
         setLoading(true);
         try {
@@ -68,6 +90,22 @@ export default function ResetPassword() {
                             onChange={(e) => setPassword(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleReset()}
                         />
+
+                        <div style={{ marginTop: "10px", marginBottom: "14px" }}>
+                            {passwordChecks.map((check, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        color: check.passed ? "#1e8e3e" : "#c0392b",
+                                        fontSize: "13px",
+                                        marginTop: "4px",
+                                        lineHeight: "1.3"
+                                    }}
+                                >
+                                    {check.passed ? "✓" : "✗"} {check.label}
+                                </div>
+                            ))}
+                        </div>
 
                         <label className="lbl">Confirm Password</label>
                         <input

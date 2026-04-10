@@ -48,7 +48,7 @@ async function startServer() {
     console.log('MongoDB connected');
 
     //-- API Route Imports
-    const authRoutes = require('./routes/authRoutes')(db);
+    const authRoutes = require('./routes/authRoutes')(db, authenticateToken);
     const userRoutes = require('./routes/userRoutes')(db);
     const householdRoutes = require('./routes/householdRoutes')(db);
     const choreRoutes = require('./routes/choreRoutes')(db);

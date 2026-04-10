@@ -1,7 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 module.exports = function (db) {
+  const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
 
   // GET /api/users/household/:householdId
   // incoming: HouseholdID
@@ -71,19 +82,6 @@ module.exports = function (db) {
   // PUT /api/users/:id
   // incoming: FirstName, LastName, Email, Login
   // outgoing: error
-  const jwt = require('jsonwebtoken');
-  const nodemailer = require('nodemailer');
-
-  const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-
   router.put('/:id', async (req, res) => {
     try {
       const userId = Number(req.params.id);
@@ -98,32 +96,54 @@ module.exports = function (db) {
         return res.status(404).json({ error: 'User not found' });
       }
 
+      if (Login !== undefined) {
+        const normalizedLogin = String(Login).trim();
+
+        if (!normalizedLogin) {
+          return res.status(400).json({ error: 'Username cannot be empty.' });
+        }
+
+        const existingUser = await db.collection('Users').findOne({
+          Login: normalizedLogin,
+          UserID: { $ne: userId }
+        });
+
+        if (existingUser) {
+          return res.status(400).json({ error: 'Username already taken.' });
+        }
+      }
+
       const updateFields = {
         UpdatedAt: new Date().toISOString()
       };
 
-      if (FirstName !== undefined) updateFields.FirstName = FirstName;
-      if (LastName !== undefined) updateFields.LastName = LastName;
-      if (Login !== undefined) updateFields.Login = Login;
+      if (FirstName !== undefined) updateFields.FirstName = String(FirstName).trim();
+      if (LastName !== undefined) updateFields.LastName = String(LastName).trim();
+      if (Login !== undefined) updateFields.Login = String(Login).trim();
 
-      // 🔥 EMAIL CHANGE LOGIC
+      // EMAIL CHANGE LOGIC
       if (Email !== undefined) {
         const normalizedEmail = String(Email).toLowerCase().trim();
+        const currentEmail = String(user.Email || '').toLowerCase().trim();
+
+        if (!normalizedEmail) {
+          return res.status(400).json({ error: 'Email cannot be empty' });
+        }
 
         // only if actually changing
-        if (normalizedEmail !== user.Email) {
+        if (normalizedEmail !== currentEmail) {
+          const existing = await db.collection('Users').findOne({
+            Email: normalizedEmail,
+            UserID: { $ne: userId }
+          });
 
-          // check if email already used
-          const existing = await db.collection('Users').findOne({ Email: normalizedEmail });
           if (existing) {
             return res.status(400).json({ error: 'Email already in use' });
           }
 
-          // store pending email
           updateFields.PendingEmail = normalizedEmail;
           updateFields.EmailVerified = false;
 
-          // create token
           const verifyToken = jwt.sign(
             { UserID: userId, PendingEmail: normalizedEmail },
             JWT_SECRET,
@@ -132,7 +152,6 @@ module.exports = function (db) {
 
           const verifyLink = `http://localhost:5173/verify-email-change?token=${verifyToken}`;
 
-          // send email
           await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: normalizedEmail,
@@ -160,7 +179,6 @@ module.exports = function (db) {
       );
 
       res.status(200).json({ error: '' });
-
     } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
@@ -195,7 +213,6 @@ module.exports = function (db) {
       );
 
       res.status(200).json({ error: '' });
-
     } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
@@ -226,7 +243,7 @@ module.exports = function (db) {
 
       const household = await db.collection('Households').findOne({ HouseholdID: householdId });
 
-      if (household && household.MemberIDs.length === 1) {
+      if (household && household.MemberIDs && household.MemberIDs.length === 1) {
         return res.status(400).json({ error: 'Cannot leave your own household' });
       }
 
@@ -246,7 +263,14 @@ module.exports = function (db) {
         ? Number(lastHousehold[0].HouseholdID) + 1
         : 1;
 
-      const newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      let newInviteCode = '';
+      let codeExists = true;
+
+      while (codeExists) {
+        newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const existingHousehold = await db.collection('Households').findOne({ InviteCode: newInviteCode });
+        codeExists = !!existingHousehold;
+      }
 
       await db.collection('Households').insertOne({
         HouseholdID: newHouseholdId,
@@ -266,11 +290,10 @@ module.exports = function (db) {
         }
       );
 
-      const oldHousehold = await db.collection('Households').findOne({ HouseholdID: householdId });
+      const updatedOldHousehold = await db.collection('Households').findOne({ HouseholdID: householdId });
 
-      if (oldHousehold && (!oldHousehold.MemberIDs || oldHousehold.MemberIDs.length === 0)) {
+      if (updatedOldHousehold && (!updatedOldHousehold.MemberIDs || updatedOldHousehold.MemberIDs.length === 0)) {
         await db.collection('Households').deleteOne({ HouseholdID: householdId });
-
         await db.collection('Chores').deleteMany({ HouseholdID: householdId });
         await db.collection('RecurringChores').deleteMany({ HouseholdID: householdId });
       }
