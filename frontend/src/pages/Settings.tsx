@@ -421,23 +421,23 @@ export default function Settings() {
                                                 }}
                                             >
                                                 <span style={{ fontWeight: 500, flex: 1 }}>{getDisplayName(m)}</span>
-                                                {m.UserID === userId && (
+                                                {m.UserID === userId && members.length > 1 && (
                                                     <button
                                                         onClick={() => handleRemove()}
                                                         style={{
-                                                            fontSize: "13px",
-                                                            padding: "4px 12px",
-                                                            background: "none",
-                                                            border: "none",
-                                                            color: "#c0392b",
-                                                            fontWeight: 600,
-                                                            cursor: "pointer",
-                                                            flexShrink: 0
+                                                        fontSize: "13px",
+                                                        padding: "4px 12px",
+                                                        background: "none",
+                                                        border: "none",
+                                                        color: "#c0392b",
+                                                        fontWeight: 600,
+                                                        cursor: "pointer",
+                                                        flexShrink: 0
                                                         }}
                                                     >
                                                         Leave Household
                                                     </button>
-                                                )}
+                                                    )}
                                             </div>
                                         );
                                     })}

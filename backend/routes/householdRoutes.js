@@ -140,9 +140,7 @@ module.exports = function (db) {
 
             const inviteCode = await ensureHouseholdInviteCode(household);
 
-            // Send email if one was provided
             if (Email) {
-                // Block if already a household member
                 const existingUser = await db.collection("Users").findOne({ Email: Email.toLowerCase() });
                 if (existingUser && (household.MemberIDs || []).includes(existingUser.UserID)) {
                     return res.status(400).json({ error: "This person is already a member of your household." });
@@ -196,7 +194,6 @@ module.exports = function (db) {
                 const normalizedCode = String(InviteCode).trim().toUpperCase();
                 household = await db.collection('Households').findOne({ InviteCode: normalizedCode });
 
-                // Legacy fallback for very old numeric invite codes
                 if (!household && /^\d+$/.test(normalizedCode)) {
                     household = await db.collection('Households').findOne({ HouseholdID: Number(normalizedCode) });
                 }
@@ -206,6 +203,43 @@ module.exports = function (db) {
 
             const user = await db.collection('Users').findOne({ UserID: userId });
             if (!user) return res.status(404).json({ error: 'User not found' });
+
+            const currentHouseholdId = user.HouseholdID;
+
+            if (currentHouseholdId && currentHouseholdId !== household.HouseholdID) {
+                await db.collection('Households').updateOne(
+                    { HouseholdID: currentHouseholdId },
+                    { $pull: { MemberIDs: userId } }
+                );
+
+                await db.collection('Chores').updateMany(
+                    { AssignedToUserID: userId, HouseholdID: currentHouseholdId },
+                    {
+                        $set: {
+                            AssignedToUserID: null,
+                            UpdatedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
+                await db.collection('RecurringChores').updateMany(
+                    { DefaultAssignedUserID: userId, HouseholdID: currentHouseholdId },
+                    {
+                        $set: {
+                            DefaultAssignedUserID: null,
+                            UpdatedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
+                const oldHousehold = await db.collection('Households').findOne({ HouseholdID: currentHouseholdId });
+
+                if (oldHousehold && (!oldHousehold.MemberIDs || oldHousehold.MemberIDs.length === 0)) {
+                    await db.collection('Households').deleteOne({ HouseholdID: currentHouseholdId });
+                    await db.collection('Chores').deleteMany({ HouseholdID: currentHouseholdId });
+                    await db.collection('RecurringChores').deleteMany({ HouseholdID: currentHouseholdId });
+                }
+            }
 
             const householdInviteCode = await ensureHouseholdInviteCode(household);
 
