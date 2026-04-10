@@ -2,8 +2,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
+const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 module.exports = function (db) {
 
@@ -112,6 +120,97 @@ module.exports = function (db) {
         UserID: -1,
         HouseholdID: -1
       });
+    }
+  });
+
+  // POST /api/auth/forgot-password
+  router.post('/forgot-password', async (req, res) => {
+    try {
+      const { Email } = req.body;
+
+      if (!Email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const normalizedEmail = String(Email).toLowerCase().trim();
+
+      const user = await db.collection('Users').findOne({ Email: normalizedEmail });
+
+      // don't reveal whether email exists
+      if (!user) {
+        return res.status(200).json({ error: '' });
+      }
+
+      const resetToken = jwt.sign(
+        { UserID: user.UserID },
+        JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: normalizedEmail,
+        subject: 'Reset your OurPlace password',
+        html: `
+          <h2>Password Reset</h2>
+          <p>You requested a password reset for your OurPlace account.</p>
+          <p>Click the button below to reset your password:</p>
+          <a href="${resetLink}" style="
+            display:inline-block;
+            padding:12px 20px;
+            background:#8B3A3A;
+            color:white;
+            text-decoration:none;
+            border-radius:8px;
+            font-weight:bold;
+          ">Reset Password</a>
+          <p style="margin-top:16px;">This link expires in 15 minutes.</p>
+        `
+      });
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  // POST /api/auth/reset-password
+  router.post('/reset-password', async (req, res) => {
+    try {
+      const { ResetToken, Password } = req.body;
+
+      if (!ResetToken || !Password) {
+        return res.status(400).json({ error: 'ResetToken and Password are required' });
+      }
+
+      let decoded;
+      try {
+        decoded = jwt.verify(ResetToken, JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
+      }
+
+      const hashedPassword = await bcrypt.hash(Password, 10);
+
+      const result = await db.collection('Users').updateOne(
+        { UserID: decoded.UserID },
+        {
+          $set: {
+            Password: hashedPassword,
+            UpdatedAt: new Date().toISOString()
+          }
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
     }
   });
 

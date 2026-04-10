@@ -174,8 +174,38 @@ export default function Settings() {
     // ─────────────────────────────
     // 🔹 REMOVE USER (UI ONLY)
     // ─────────────────────────────
-    const handleRemove = () => {
-        alert("Leave Household endpoint not implemented yet");
+    const handleRemove = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const userId = localStorage.getItem("userId");
+
+            const res = await fetch(
+                `http://localhost:5000/api/users/${userId}/remove-from-household`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    }
+                }
+            );
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            localStorage.setItem("householdId", "");
+
+            alert("You left the household");
+
+            window.location.href = "/";
+
+        } catch (e) {
+            alert("Something went wrong");
+        }
     };
 
     // ─────────────────────────────
