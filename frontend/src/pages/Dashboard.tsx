@@ -26,6 +26,10 @@ export default function Dashboard() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+    };
+
     const fetchOpenChores = async () => {
         try {
             const res = await fetch(`${API_BASE}/chores/open?HouseholdID=${householdId}`);
@@ -154,24 +158,41 @@ export default function Dashboard() {
                         Priority: form.Priority
                     })
                 });
-            } else {
-                await fetch(`${API_BASE}/chores`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        Title: form.Title,
-                        Description: form.Description,
-                        DueDate: form.DueDate || null,
-                        Priority: form.Priority,
-                        AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
-                        HouseholdID: householdId,
-                        CreatedByUserID: userId
-                    })
-                });
+
+                markChoresUpdated();
+                resetModal();
+                return;
             }
 
+            const res = await fetch(`${API_BASE}/chores`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    Title: form.Title,
+                    Description: form.Description,
+                    DueDate: form.DueDate || null,
+                    Priority: form.Priority,
+                    AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                    HouseholdID: householdId,
+                    CreatedByUserID: userId
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            markChoresUpdated();
             resetModal();
-            fetchOpenChores();
+
+            if (form.AssignedToUserID) {
+                navigate("/assigned");
+            } else {
+                fetchOpenChores();
+            }
         } catch (e) {
             console.log("Error creating chore:", e);
         }
@@ -179,12 +200,21 @@ export default function Dashboard() {
 
     const handleClaim = async (choreId: number) => {
         try {
-            await fetch(`${API_BASE}/chores/${choreId}/claim`, {
+            const res = await fetch(`${API_BASE}/chores/${choreId}/claim`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ AssignedToUserID: userId })
             });
-            fetchOpenChores();
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            setOpenChores((prev) => prev.filter((chore) => chore.ChoreID !== choreId));
+            markChoresUpdated();
         } catch (e) {
             console.log("Failed to claim chore:", e);
         }
@@ -280,7 +310,11 @@ export default function Dashboard() {
                                         <span className={`priority p-${chore.Priority?.toLowerCase()}`}>
                                             {chore.Priority}
                                         </span>
-                                        <button type="button" className="claim-btn" onClick={() => handleClaim(chore.ChoreID)}>
+                                        <button
+                                            type="button"
+                                            className="claim-btn"
+                                            onClick={() => handleClaim(chore.ChoreID)}
+                                        >
                                             Claim
                                         </button>
                                     </div>
@@ -379,13 +413,13 @@ export default function Dashboard() {
                                     className={`toggle ${isRecurring ? "on" : ""}`}
                                     onClick={() => setIsRecurring(!isRecurring)}
                                 >
-                                    <div className="toggle-thumb" />
+                                    <div className="toggle-knob" />
                                 </div>
                             </div>
 
                             {isRecurring && (
-                                <>
-                                    <label className="modal-lbl">REPEAT FREQUENCY</label>
+                                <div className="modal-col" style={{ marginTop: "10px" }}>
+                                    <label className="modal-lbl">REPEAT</label>
                                     <select
                                         className="modal-inp"
                                         name="RepeatFrequency"
@@ -396,16 +430,16 @@ export default function Dashboard() {
                                         <option value="weekly">Weekly</option>
                                         <option value="monthly">Monthly</option>
                                     </select>
-                                </>
+                                </div>
                             )}
                         </div>
 
-                        <div className="modal-footer">
+                        <div className="modal-actions">
                             <button type="button" className="modal-cancel" onClick={resetModal}>
                                 Cancel
                             </button>
-                            <button type="button" className="modal-submit" onClick={handleSubmitChore}>
-                                🏡 Publish Chore
+                            <button type="button" className="modal-save" onClick={handleSubmitChore}>
+                                Create
                             </button>
                         </div>
                     </div>

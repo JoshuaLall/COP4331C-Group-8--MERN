@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 module.exports = function (db) {
 
-    const INVITE_CODE_LENGTH = 8;
+    const INVITE_CODE_LENGTH = 6;
     const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     const generateInviteCode = () => {
@@ -24,7 +24,7 @@ module.exports = function (db) {
     };
 
     const isValidInviteCode = (code) =>
-        typeof code === "string" && /^[A-Z0-9]{8}$/.test(code.trim().toUpperCase());
+        typeof code === "string" && /^[A-Z0-9]{6}$/.test(code.trim().toUpperCase());
 
     const getUniqueInviteCode = async () => {
         for (let attempt = 0; attempt < 25; attempt++) {

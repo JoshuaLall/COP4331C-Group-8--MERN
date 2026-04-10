@@ -25,6 +25,11 @@ export default function Completed() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
+    };
+
     const fetchCompleted = async () => {
         try {
             const res = await fetch(
@@ -73,6 +78,32 @@ export default function Completed() {
         fetchHousemates();
         fetchUser();
         fetchHousehold();
+    }, [userId, householdId]);
+
+    useEffect(() => {
+        const handleStorage = (e?: StorageEvent) => {
+            if (!e || e.key === "choresLastUpdated") {
+                fetchCompleted();
+            }
+        };
+
+        const handleCustomUpdate = () => {
+            fetchCompleted();
+        };
+
+        const handleFocus = () => {
+            fetchCompleted();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("choresUpdated", handleCustomUpdate);
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener("choresUpdated", handleCustomUpdate);
+            window.removeEventListener("focus", handleFocus);
+        };
     }, [userId, householdId]);
 
     const getAvatarStyle = (name: string) => {
@@ -158,6 +189,7 @@ export default function Completed() {
                 });
             }
 
+            markChoresUpdated();
             resetModal();
         } catch (e) {
             console.log("Error creating chore:", e);

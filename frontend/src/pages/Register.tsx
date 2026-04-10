@@ -13,11 +13,10 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirm, setConfirm] = useState("");
-    const [householdName, setHouseholdName] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleRegister = async () => {
-        if (!firstName || !username || !email || !password || !householdName) {
+        if (!firstName || !username || !email || !password) {
             alert("Please fill in all required fields.");
             return;
         }
@@ -41,6 +40,7 @@ export default function Register() {
                     Password: password
                 })
             });
+
             const regData = await regRes.json();
 
             if (!regRes.ok || regData.error !== "") {
@@ -49,42 +49,8 @@ export default function Register() {
                 return;
             }
 
-            const loginRes = await fetch(`${API_BASE}/auth/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ Login: username, Password: password })
-            });
-            const loginData = await loginRes.json();
-
-            if (!loginRes.ok || loginData.error !== "") {
-                alert(loginData.error || "Unable to log in after registration.");
-                setLoading(false);
-                return;
-            }
-
-            localStorage.setItem("token", loginData.token || "");
-            localStorage.setItem("userId", String(loginData.UserID));
-
-            const hhRes = await fetch(`${API_BASE}/households`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    HouseholdName: householdName,
-                    CreatedByUserID: loginData.UserID
-                })
-            });
-
-            const hhData = await hhRes.json();
-
-            if (!hhRes.ok || hhData.error !== "") {
-                alert(hhData.error || "Unable to create household.");
-                setLoading(false);
-                return;
-            }
-
-            localStorage.setItem("householdId", String(hhData.HouseholdID));
-            localStorage.setItem("token", loginData.token || "");
-            navigate("/overview");
+            alert("Account created! Please verify your email before logging in.");
+            navigate("/");
         } catch (e) {
             alert("Something went wrong. Is the backend running?");
         }
@@ -142,11 +108,11 @@ export default function Register() {
 
             <div className="form-side">
                 <div className="welcome-badge">
-                    <div className="dot" /> Create your home
+                    <div className="dot" /> Create your account
                 </div>
 
                 <div className="brand">Our<em>Place</em></div>
-                <div className="sub">Set up your household and invite your roommates</div>
+                <div className="sub">Sign up, verify your email, then log in to continue</div>
 
                 <div className="inp-row">
                     <div className="inp-col">
@@ -209,25 +175,13 @@ export default function Register() {
                     </div>
                 </div>
 
-                <div className="household-divider">
-                    <span>🏠 Your Household</span>
-                </div>
-
-                <label className="lbl">Household Name *</label>
-                <input
-                    className="inp"
-                    placeholder="e.g. The Maple House"
-                    value={householdName}
-                    onChange={(e) => setHouseholdName(e.target.value)}
-                />
-
                 <button
                     className="btn-main"
                     onClick={handleRegister}
                     disabled={loading}
                     style={{ marginTop: "8px" }}
                 >
-                    {loading ? "Creating..." : "🏡 Create Household"}
+                    {loading ? "Creating..." : "Create Account"}
                 </button>
 
                 <div className="links-row" style={{ marginTop: "16px" }}>

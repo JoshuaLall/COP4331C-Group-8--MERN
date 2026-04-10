@@ -21,11 +21,14 @@ export default function JoinHousehold() {
             alert("Please fill in all required fields including the invite code.");
             return;
         }
+
         if (password !== confirm) {
             alert("Passwords do not match.");
             return;
         }
+
         setLoading(true);
+
         try {
             const regRes = await fetch(`${API_BASE}/auth/register`, {
                 method: "POST",
@@ -38,50 +41,24 @@ export default function JoinHousehold() {
                     Password: password
                 })
             });
+
             const regData = await regRes.json();
+
             if (!regRes.ok || regData.error !== "") {
                 alert(regData.error || "Registration failed.");
                 setLoading(false);
                 return;
             }
 
-            const loginRes = await fetch(`${API_BASE}/auth/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ Login: username, Password: password })
-            });
-            const loginData = await loginRes.json();
+            localStorage.setItem("pendingInviteCode", inviteCode.toUpperCase());
 
-            if (!loginRes.ok || loginData.error !== "") {
-                alert(loginData.error || "Unable to log in after registration.");
-                setLoading(false);
-                return;
-            }
-
-            localStorage.setItem("token", loginData.token || "");
-            localStorage.setItem("userId", String(loginData.UserID));
-
-            const joinRes = await fetch(`${API_BASE}/households/join`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    InviteCode: inviteCode,
-                    UserID: loginData.UserID
-                })
-            });
-            const joinData = await joinRes.json();
-            if (!joinRes.ok || joinData.error !== "") {
-                alert(joinData.error || "Unable to join household.");
-                setLoading(false);
-                return;
-            }
-
-            localStorage.setItem("householdId", String(joinData.HouseholdID));
-            navigate("/overview");
+            alert("Account created! Please verify your email before logging in. After you log in, you can use your invite code to join the household.");
+            navigate("/");
         } catch (e) {
             alert("Something went wrong. Is the backend running?");
             console.log(e);
         }
+
         setLoading(false);
     };
 
@@ -139,7 +116,7 @@ export default function JoinHousehold() {
                 </div>
 
                 <div className="brand">Our<em>Place</em></div>
-                <div className="sub">Create your account and enter your invite code</div>
+                <div className="sub">Create your account, verify your email, then log in to join with your invite code</div>
 
                 <div className="inp-row">
                     <div className="inp-col">
@@ -220,14 +197,26 @@ export default function JoinHousehold() {
                     disabled={loading}
                     style={{ marginTop: "8px" }}
                 >
-                    {loading ? "Joining..." : "🚪 Join Household"}
+                    {loading ? "Creating..." : "Create Account"}
                 </button>
 
                 <div className="links-row" style={{ marginTop: "16px" }}>
-                    <a href="#" onClick={() => navigate("/")}>
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            navigate("/");
+                        }}
+                    >
                         ← Back to sign in
                     </a>
-                    <a href="#" onClick={() => navigate("/register")}>
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            navigate("/register");
+                        }}
+                    >
                         Create a new household instead
                     </a>
                 </div>

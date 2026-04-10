@@ -180,7 +180,7 @@ export default function Settings() {
             const userId = localStorage.getItem("userId");
 
             const res = await fetch(
-                `http://localhost:5000/api/users/${userId}/remove-from-household`,
+                `${API_BASE}/users/${userId}/remove-from-household`,
                 {
                     method: "PUT",
                     headers: {
@@ -212,6 +212,7 @@ export default function Settings() {
     // 🔹 SIGN OUT
     // ─────────────────────────────
     const handleSignOut = () => {
+        localStorage.removeItem("token");
         localStorage.removeItem("userId");
         localStorage.removeItem("householdId");
         navigate("/");
@@ -425,19 +426,19 @@ export default function Settings() {
                                                     <button
                                                         onClick={() => handleRemove()}
                                                         style={{
-                                                        fontSize: "13px",
-                                                        padding: "4px 12px",
-                                                        background: "none",
-                                                        border: "none",
-                                                        color: "#c0392b",
-                                                        fontWeight: 600,
-                                                        cursor: "pointer",
-                                                        flexShrink: 0
+                                                            fontSize: "13px",
+                                                            padding: "4px 12px",
+                                                            background: "none",
+                                                            border: "none",
+                                                            color: "#c0392b",
+                                                            fontWeight: 600,
+                                                            cursor: "pointer",
+                                                            flexShrink: 0
                                                         }}
                                                     >
                                                         Leave Household
                                                     </button>
-                                                    )}
+                                                )}
                                             </div>
                                         );
                                     })}

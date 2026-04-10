@@ -29,6 +29,11 @@ export default function MyChores() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
+    };
+
     // ================= FETCH =================
 
     const fetchMyChores = async () => {
@@ -85,7 +90,33 @@ export default function MyChores() {
         fetchHousemates();
         fetchUser();
         fetchHousehold();
-    }, []);
+    }, [userId, householdId]);
+
+    useEffect(() => {
+        const handleStorage = (e?: StorageEvent) => {
+            if (!e || e.key === "choresLastUpdated") {
+                fetchMyChores();
+            }
+        };
+
+        const handleCustomUpdate = () => {
+            fetchMyChores();
+        };
+
+        const handleFocus = () => {
+            fetchMyChores();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("choresUpdated", handleCustomUpdate);
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener("choresUpdated", handleCustomUpdate);
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [userId, householdId]);
 
     // ================= HANDLERS =================
 
@@ -141,6 +172,7 @@ export default function MyChores() {
                 }
             }
 
+            markChoresUpdated();
             resetModal();
             fetchMyChores();
         } catch (e) {
@@ -169,6 +201,7 @@ export default function MyChores() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ CompletedByUserID: userId })
             });
+            markChoresUpdated();
             fetchMyChores();
         } catch (e) {
             console.log("Failed to complete chore:", e);

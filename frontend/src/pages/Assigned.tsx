@@ -30,6 +30,11 @@ export default function Assigned() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
+    };
+
     // ================= FETCH =================
 
     const fetchAssigned = async () => {
@@ -90,6 +95,32 @@ export default function Assigned() {
         fetchHousemates();
         fetchCurrentUser();
         fetchHousehold();
+    }, [userId, householdId]);
+
+    useEffect(() => {
+        const handleStorage = (e?: StorageEvent) => {
+            if (!e || e.key === "choresLastUpdated") {
+                fetchAssigned();
+            }
+        };
+
+        const handleCustomUpdate = () => {
+            fetchAssigned();
+        };
+
+        const handleFocus = () => {
+            fetchAssigned();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("choresUpdated", handleCustomUpdate);
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener("choresUpdated", handleCustomUpdate);
+            window.removeEventListener("focus", handleFocus);
+        };
     }, [userId, householdId]);
 
     // ================= HELPERS =================
@@ -223,6 +254,7 @@ export default function Assigned() {
                 }
             }
 
+            markChoresUpdated();
             resetModal();
             fetchAssigned();
         } catch (e) {
@@ -240,6 +272,7 @@ export default function Assigned() {
             });
             const data = await res.json();
             if (data.error === "") {
+                markChoresUpdated();
                 await fetchAssigned();
             } else {
                 alert(data.error);
