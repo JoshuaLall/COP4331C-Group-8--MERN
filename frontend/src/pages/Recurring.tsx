@@ -82,6 +82,11 @@ export default function Recurring() {
         fetchHousehold();
     };
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
+    };
+
     useEffect(() => {
         if (!userId || !householdId) return;
         fetchAll();
@@ -167,25 +172,42 @@ export default function Recurring() {
         if (!form.Title.trim()) { alert("Please enter a chore title."); return; }
         try {
             if (isEdit && selectedChore) {
-                await fetch(
-                    `${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`,
-                    {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
+                await fetch(`${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        Title: form.Title,
+                        Description: form.Description,
+                        RepeatFrequency: form.RepeatFrequency,
+                        RepeatInterval: 1,
+                        NextDueDate: form.DueDate || null,
+                        DefaultAssignedUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                        Priority: form.Priority
+                    })
+                });
+                const allRes = await fetch(`${API_BASE}/chores?HouseholdID=${householdId}`);
+                const allData = await allRes.json();
+                if (allData.error === "") {
+                    const instances = (allData.results || []).filter(
+                        (c: any) =>
+                        Number(c.RecurringTemplateID) === Number(selectedChore.RecurringTemplateID) &&
+                        c.Status !== "completed"
+                    );
+                    for (const instance of instances) {
+                        await fetch(`${API_BASE}/chores/${instance.ChoreID}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
                             Title: form.Title,
                             Description: form.Description,
-                            RepeatFrequency: form.RepeatFrequency,
-                            RepeatInterval: 1,
-                            NextDueDate: form.DueDate || null,
-                            DefaultAssignedUserID: form.AssignedToUserID
-                                ? Number(form.AssignedToUserID)
-                                : null,
-                            Priority: form.Priority
+                            Priority: form.Priority,
+                            AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                            Status: form.AssignedToUserID ? "assigned" : "open"
                         })
-                    }
-                );
-            } else {
+                    });
+                }
+            }
+        } else {
                 await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -204,6 +226,7 @@ export default function Recurring() {
                     })
                 });
             }
+            markChoresUpdated();
             resetModal();
             fetchRecurring();
         } catch (e) {
@@ -336,7 +359,7 @@ export default function Recurring() {
                 <div className="topbar">
                     <div>
                         <div className="topbar-greet">
-                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
+                            Hello{currentUser ? `, ${currentUser}` : ""} 👋
                         </div>
                         <div className="topbar-sub">
                             {new Date().toLocaleDateString("en-US", {

@@ -345,6 +345,40 @@ export default function Settings() {
                         </div>
                     </div>
 
+                    {/* ── SECTION: HOUSEHOLD NAME ── */}
+                    <div className="card" style={{ marginBottom: "20px" }}>
+                        <div className="card-body">
+                            <div className="card-title">🏠 Household Name</div>
+                            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                                <input
+                                className="modal-inp"
+                                value={houseName}
+                                onChange={(e) => setHouseName(e.target.value)}
+                                placeholder="Household name..."
+                                style={{ flex: 1 }}
+                                />
+                                <button 
+                                className="tb-btn"
+                                onClick={async () => {
+                                try {
+                                    const res = await fetch(`${API_BASE}/households/${householdId}`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ HouseholdName: houseName })
+                                });
+                                const data = await res.json();
+                                if (data.error) alert(data.error);
+                            } catch (err) {
+                                console.log(err);  
+                            }
+                        }}
+                        >
+                            Rename
+                            </button>
+                            </div>
+                            </div>
+                            </div>
+
                     {/* ── SECTION: INVITE ── */}
                     <div className="card" style={{ marginBottom: "20px" }}>
                         <div className="card-body">
@@ -444,7 +478,7 @@ export default function Settings() {
                                                 }}
                                             >
                                                 <span style={{ fontWeight: 500, flex: 1 }}>{getDisplayName(m)}</span>
-                                                {m.UserID === userId && members.length > 1 && (
+                                                {m.UserID === userId && (
                                                     <button
                                                         onClick={() => handleRemove()}
                                                         style={{

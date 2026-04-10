@@ -110,9 +110,30 @@ export default function Overview() {
         fetchHousehold();
     }, [userId, householdId]);
 
-    const overdueCount = [...openChores, ...assignedChores].filter((c: any) =>
-        c.DueDate && new Date(c.DueDate) < new Date() && c.Status !== "completed"
-    ).length;
+    useEffect(() => {
+        const handleUpdate = () => {
+            fetchOpenChores();
+            fetchAssignedChores();
+            fetchMyChores();
+            fetchCompletedChores();
+        };
+        window.addEventListener("choresUpdated", handleUpdate);
+        window.addEventListener("focus", handleUpdate);
+        return () => {
+            window.removeEventListener("choresUpdated", handleUpdate);
+            window.removeEventListener("focus", handleUpdate);
+        };
+    }, [userId, householdId]);
+
+    const overdueCount = [...openChores, ...assignedChores].filter((c: any) => {
+        if (!c.DueDate) return false;
+        const [year, month, day] = c.DueDate.split("T")[0].split("-").map(Number);
+        const due = new Date(year, month - 1, day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        due.setHours(0, 0, 0, 0);
+        return due < today && c.Status !== "completed";
+    }).length;
 
     const doneThisMonth = completedChores.filter((c: any) => {
         if (!c.CompletedAt) return false;
@@ -122,13 +143,16 @@ export default function Overview() {
     }).length;
 
     const stats = [
-        { num: openChores.length + assignedChores.length, label: "Open chores" },
+        { num: openChores.length, label: "Open chores" },
         {
             num: myChores.filter((c: any) => {
                 if (!c.DueDate) return false;
-                const due = new Date(c.DueDate);
-                const now = new Date();
-                return due.getDate() === now.getDate() && due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+                const [year, month, day] = c.DueDate.split("T")[0].split("-").map(Number);
+                const due = new Date(year, month - 1, day);
+                const today = new Date();
+                due.setHours(0, 0, 0, 0);
+                today.setHours(0, 0, 0, 0);
+                return due.getTime() === today.getTime();
             }).length,
             label: "Mine today"
         },
@@ -299,7 +323,7 @@ export default function Overview() {
                 <div className="topbar">
                     <div>
                         <div className="topbar-greet">
-                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
+                            Hello{currentUser ? `, ${currentUser}` : ""} 👋
                         </div>
                         <div className="topbar-sub">
                             {new Date().toLocaleDateString("en-US", {

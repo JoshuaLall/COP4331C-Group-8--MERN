@@ -300,7 +300,7 @@ export default function MyChores() {
                 <div className="topbar">
                     <div>
                         <div className="topbar-greet">
-                            Good morning{currentUser ? `, ${currentUser}` : ""} 👋
+                            Hello{currentUser ? `, ${currentUser}` : ""} 👋
                         </div>
                         <div className="topbar-sub">
                             {new Date().toLocaleDateString("en-US", {

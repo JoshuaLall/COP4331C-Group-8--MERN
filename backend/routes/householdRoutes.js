@@ -263,5 +263,35 @@ module.exports = function (db) {
         }
     });
 
+
+    // PUT /api/households/:id - Added this to update household name
+    router.put('/:id', async (req, res) => {
+        try {
+            const householdId = Number(req.params.id);
+            const { HouseholdName } = req.body;
+
+            if (!householdId) {
+                return res.status(400).json({ error: 'HouseholdID is required' });
+            }
+
+            if (!HouseholdName || !HouseholdName.trim()) {
+                return res.status(400).json({ error: 'HouseholdName is required' });
+            }
+
+            const result = await db.collection('Households').updateOne(
+                { HouseholdID: householdId },
+                { $set: { HouseholdName: HouseholdName.trim() } }
+            );
+
+            if (result.matchedCount === 0) {
+                return res.status(404).json({ error: 'Household not found' });
+            }
+
+            res.status(200).json({ error: '' });
+        } catch (e) {
+            res.status(500).json({ error: e.toString() });
+        }
+    });
+
     return router;
 };
