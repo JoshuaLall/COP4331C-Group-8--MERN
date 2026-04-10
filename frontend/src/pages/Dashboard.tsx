@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -24,9 +26,13 @@ export default function Dashboard() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+    };
+
     const fetchOpenChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/open?HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") setOpenChores(data.results || []);
         } catch (e) {
@@ -36,7 +42,7 @@ export default function Dashboard() {
 
     const fetchHousemates = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/household/${householdId}`);
+            const res = await fetch(`${API_BASE}/users/household/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHousemates(data.results || []);
         } catch (e) {
@@ -46,7 +52,7 @@ export default function Dashboard() {
 
     const fetchUser = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") setCurrentUser(data.result?.FirstName || data.result?.Login || "");
         } catch (e) {
@@ -56,7 +62,7 @@ export default function Dashboard() {
 
     const fetchHousehold = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHouseName(data.result?.HouseholdName || "");
         } catch (e) {
@@ -137,7 +143,7 @@ export default function Dashboard() {
 
         try {
             if (isRecurring) {
-                await fetch("http://localhost:5000/api/recurring-chores", {
+                await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -152,24 +158,41 @@ export default function Dashboard() {
                         Priority: form.Priority
                     })
                 });
-            } else {
-                await fetch("http://localhost:5000/api/chores", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        Title: form.Title,
-                        Description: form.Description,
-                        DueDate: form.DueDate || null,
-                        Priority: form.Priority,
-                        AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
-                        HouseholdID: householdId,
-                        CreatedByUserID: userId
-                    })
-                });
+
+                markChoresUpdated();
+                resetModal();
+                return;
             }
 
+            const res = await fetch(`${API_BASE}/chores`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    Title: form.Title,
+                    Description: form.Description,
+                    DueDate: form.DueDate || null,
+                    Priority: form.Priority,
+                    AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                    HouseholdID: householdId,
+                    CreatedByUserID: userId
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            markChoresUpdated();
             resetModal();
-            fetchOpenChores();
+
+            if (form.AssignedToUserID) {
+                navigate("/assigned");
+            } else {
+                fetchOpenChores();
+            }
         } catch (e) {
             console.log("Error creating chore:", e);
         }
@@ -177,12 +200,21 @@ export default function Dashboard() {
 
     const handleClaim = async (choreId: number) => {
         try {
-            await fetch(`http://localhost:5000/api/chores/${choreId}/claim`, {
+            const res = await fetch(`${API_BASE}/chores/${choreId}/claim`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ AssignedToUserID: userId })
             });
-            fetchOpenChores();
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            setOpenChores((prev) => prev.filter((chore) => chore.ChoreID !== choreId));
+            markChoresUpdated();
         } catch (e) {
             console.log("Failed to claim chore:", e);
         }
@@ -278,7 +310,11 @@ export default function Dashboard() {
                                         <span className={`priority p-${chore.Priority?.toLowerCase()}`}>
                                             {chore.Priority}
                                         </span>
-                                        <button type="button" className="claim-btn" onClick={() => handleClaim(chore.ChoreID)}>
+                                        <button
+                                            type="button"
+                                            className="claim-btn"
+                                            onClick={() => handleClaim(chore.ChoreID)}
+                                        >
                                             Claim
                                         </button>
                                     </div>
@@ -377,13 +413,13 @@ export default function Dashboard() {
                                     className={`toggle ${isRecurring ? "on" : ""}`}
                                     onClick={() => setIsRecurring(!isRecurring)}
                                 >
-                                    <div className="toggle-thumb" />
+                                    <div className="toggle-knob" />
                                 </div>
                             </div>
 
                             {isRecurring && (
-                                <>
-                                    <label className="modal-lbl">REPEAT FREQUENCY</label>
+                                <div className="modal-col" style={{ marginTop: "10px" }}>
+                                    <label className="modal-lbl">REPEAT</label>
                                     <select
                                         className="modal-inp"
                                         name="RepeatFrequency"
@@ -394,16 +430,16 @@ export default function Dashboard() {
                                         <option value="weekly">Weekly</option>
                                         <option value="monthly">Monthly</option>
                                     </select>
-                                </>
+                                </div>
                             )}
                         </div>
 
-                        <div className="modal-footer">
+                        <div className="modal-actions">
                             <button type="button" className="modal-cancel" onClick={resetModal}>
                                 Cancel
                             </button>
-                            <button type="button" className="modal-submit" onClick={handleSubmitChore}>
-                                🏡 Publish Chore
+                            <button type="button" className="modal-save" onClick={handleSubmitChore}>
+                                Create
                             </button>
                         </div>
                     </div>

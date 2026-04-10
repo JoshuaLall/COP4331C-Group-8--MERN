@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Overview() {
     const navigate = useNavigate();
 
@@ -29,7 +31,7 @@ export default function Overview() {
 
     const fetchOpenChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/open?HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/open?HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") setOpenChores(data.results || []);
         } catch (e) {
@@ -39,7 +41,7 @@ export default function Overview() {
 
     const fetchAssignedChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/assigned?HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/assigned?HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") setAssignedChores(data.results || []);
         } catch (e) {
@@ -49,7 +51,7 @@ export default function Overview() {
 
     const fetchMyChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/my?UserID=${userId}&HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/my?UserID=${userId}&HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") setMyChores(data.results || []);
         } catch (e) {
@@ -59,7 +61,7 @@ export default function Overview() {
 
     const fetchCompletedChores = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/completed?HouseholdID=${householdId}&UserID=${userId}`);
+            const res = await fetch(`${API_BASE}/chores/completed?HouseholdID=${householdId}&UserID=${userId}`);
             const data = await res.json();
             if (data.error === "") setCompletedChores(data.results || []);
         } catch (e) {
@@ -69,7 +71,7 @@ export default function Overview() {
 
     const fetchHousemates = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/household/${householdId}`);
+            const res = await fetch(`${API_BASE}/users/household/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHousemates(data.results || []);
         } catch (e) {
@@ -79,7 +81,7 @@ export default function Overview() {
 
     const fetchUser = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") setCurrentUser(data.result?.FirstName || data.result?.Login || "");
         } catch (e) {
@@ -89,7 +91,7 @@ export default function Overview() {
 
     const fetchHousehold = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHouseName(data.result?.HouseholdName || "");
         } catch (e) {
@@ -222,7 +224,7 @@ export default function Overview() {
 
         try {
             if (isRecurring) {
-                await fetch("http://localhost:5000/api/recurring-chores", {
+                await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -238,7 +240,7 @@ export default function Overview() {
                     })
                 });
             } else {
-                await fetch("http://localhost:5000/api/chores", {
+                await fetch(`${API_BASE}/chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

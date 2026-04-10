@@ -2,10 +2,12 @@ class UserSession {
   const UserSession({
     required this.userId,
     required this.householdId,
+    required this.token,
   });
 
   final int userId;
   final int householdId;
+  final String token;
 }
 
 class UserProfile {

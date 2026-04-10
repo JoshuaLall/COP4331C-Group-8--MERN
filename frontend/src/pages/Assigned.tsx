@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Assigned() {
     const navigate = useNavigate();
 
@@ -28,12 +30,17 @@ export default function Assigned() {
         RepeatFrequency: "weekly"
     });
 
+    const markChoresUpdated = () => {
+        localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
+    };
+
     // ================= FETCH =================
 
     const fetchAssigned = async () => {
         if (!householdId) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/assigned?HouseholdID=${householdId}`);
+            const res = await fetch(`${API_BASE}/chores/assigned?HouseholdID=${householdId}`);
             const data = await res.json();
             if (data.error === "") {
                 setAssignedChores(data.results || []);
@@ -46,7 +53,7 @@ export default function Assigned() {
     const fetchHousemates = async () => {
         if (!householdId) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/users/household/${householdId}`);
+            const res = await fetch(`${API_BASE}/users/household/${householdId}`);
             const data = await res.json();
             if (data.error === "") {
                 setHousemates(data.results || []);
@@ -59,7 +66,7 @@ export default function Assigned() {
     const fetchCurrentUser = async () => {
         if (!userId) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") {
                 setCurrentUser(data.result?.FirstName || data.result?.Login || "");
@@ -72,7 +79,7 @@ export default function Assigned() {
     const fetchHousehold = async () => {
         if (!householdId) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") {
                 setHouseName(data.result?.HouseholdName || "");
@@ -88,6 +95,32 @@ export default function Assigned() {
         fetchHousemates();
         fetchCurrentUser();
         fetchHousehold();
+    }, [userId, householdId]);
+
+    useEffect(() => {
+        const handleStorage = (e?: StorageEvent) => {
+            if (!e || e.key === "choresLastUpdated") {
+                fetchAssigned();
+            }
+        };
+
+        const handleCustomUpdate = () => {
+            fetchAssigned();
+        };
+
+        const handleFocus = () => {
+            fetchAssigned();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("choresUpdated", handleCustomUpdate);
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener("choresUpdated", handleCustomUpdate);
+            window.removeEventListener("focus", handleFocus);
+        };
     }, [userId, householdId]);
 
     // ================= HELPERS =================
@@ -173,7 +206,7 @@ export default function Assigned() {
 
         try {
             if (isEdit && selectedChore) {
-                await fetch(`http://localhost:5000/api/chores/${selectedChore.ChoreID}`, {
+                await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -187,7 +220,7 @@ export default function Assigned() {
                     });
             } else {
                 if (isRecurring) {
-                    await fetch("http://localhost:5000/api/recurring-chores", {
+                    await fetch(`${API_BASE}/recurring-chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -205,7 +238,7 @@ export default function Assigned() {
                         })
                     });
                 } else {
-                    await fetch("http://localhost:5000/api/chores", {
+                    await fetch(`${API_BASE}/chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -223,6 +256,7 @@ export default function Assigned() {
                 }
             }
 
+            markChoresUpdated();
             resetModal();
             fetchAssigned();
         } catch (e) {
@@ -233,13 +267,14 @@ export default function Assigned() {
     const handleComplete = async (choreId: number) => {
         if (!userId) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/chores/${choreId}/complete`, {
+            const res = await fetch(`${API_BASE}/chores/${choreId}/complete`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ CompletedByUserID: Number(userId) })
             });
             const data = await res.json();
             if (data.error === "") {
+                markChoresUpdated();
                 await fetchAssigned();
             } else {
                 alert(data.error);

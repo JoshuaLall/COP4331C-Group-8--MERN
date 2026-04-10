@@ -149,7 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 36),
+              const SizedBox(height: 4),
+              const _LoginSceneHeader(),
+              const SizedBox(height: 16),
               const Text(
                 'Welcome home',
                 style: TextStyle(
@@ -158,31 +160,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: BrandTokens.inkSoft,
                 ),
               ),
-              const SizedBox(height: 10),
-              const BrandLogo(size: 40, center: true),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              const BrandLogo(size: 34, center: true),
+              const SizedBox(height: 8),
               const Text(
                 'Your shared home, organized together.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: BrandTokens.muted),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Text(
                 'Sign in',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Use the same account you already use on the website.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: BrandTokens.muted),
-              ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -190,13 +186,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _loginController,
                         decoration: const InputDecoration(labelText: 'Username'),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _passwordController,
                         obscureText: true,
                         decoration: const InputDecoration(labelText: 'Password'),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 18),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
@@ -208,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               const Row(
                 children: [
                   Expanded(child: Divider(color: BrandTokens.border)),
@@ -226,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Expanded(child: Divider(color: BrandTokens.border)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -240,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text('Create a household'),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -264,6 +260,100 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginSceneHeader extends StatelessWidget {
+  const _LoginSceneHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 142,
+      width: 176,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          const Positioned(
+            top: -24,
+            left: 58,
+            child: _ChimneySmoke(),
+          ),
+          Transform.scale(
+            scale: 1.035,
+            child: Opacity(
+              opacity: 0.38,
+              child: Image.asset(
+                'assets/house-transparent.png',
+                fit: BoxFit.contain,
+                color: BrandTokens.borderDark,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+            ),
+          ),
+          Image.asset(
+            'assets/house-transparent.png',
+            fit: BoxFit.contain,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChimneySmoke extends StatelessWidget {
+  const _ChimneySmoke();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24,
+      height: 34,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 16,
+            left: 2,
+            child: _SmokePuff(size: 9, opacity: 0.34),
+          ),
+          Positioned(
+            top: 7,
+            left: 10,
+            child: _SmokePuff(size: 7, opacity: 0.52),
+          ),
+          Positioned(
+            top: 0,
+            left: 7,
+            child: _SmokePuff(size: 5, opacity: 0.68),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmokePuff extends StatelessWidget {
+  const _SmokePuff({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          color: Color(0xFFAFC6DA),
+          shape: BoxShape.circle,
         ),
       ),
     );

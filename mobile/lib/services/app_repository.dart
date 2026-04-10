@@ -3,10 +3,10 @@ import 'api_client.dart';
 import 'session_store.dart';
 
 class AppRepository {
-  AppRepository(this._sessionStore);
+  AppRepository(this._sessionStore) : _api = ApiClient(_sessionStore);
 
   final SessionStore _sessionStore;
-  final ApiClient _api = ApiClient();
+  final ApiClient _api;
 
   UserSession? getStoredSession() => _sessionStore.readSession();
 
@@ -22,7 +22,11 @@ class AppRepository {
     final session = UserSession(
       userId: _coerceInt(data['UserID']),
       householdId: _coerceInt(data['HouseholdID']),
+      token: data['token']?.toString() ?? '',
     );
+    if (session.token.isEmpty) {
+      throw Exception('Login succeeded but no session token was returned.');
+    }
     await _sessionStore.saveSession(session);
     return session;
   }

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Recurring() {
     const navigate = useNavigate();
 
@@ -32,7 +34,7 @@ export default function Recurring() {
     const fetchRecurring = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/recurring-chores?HouseholdID=${householdId}`
+                `${API_BASE}/recurring-chores?HouseholdID=${householdId}`
             );
             const data = await res.json();
             if (data.error === "" || !data.error) setRecurringChores(data.results || []);
@@ -44,7 +46,7 @@ export default function Recurring() {
     const fetchHousemates = async () => {
         try {
             const res = await fetch(
-                `http://localhost:5000/api/users/household/${householdId}`
+                `${API_BASE}/users/household/${householdId}`
             );
             const data = await res.json();
             if (data.error === "" || !data.error) setHousemates(data.results || []);
@@ -55,7 +57,7 @@ export default function Recurring() {
 
     const fetchUser = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`);
+            const res = await fetch(`${API_BASE}/users/${userId}`);
             const data = await res.json();
             if (data.error === "") setCurrentUser(data.result?.FirstName || data.result?.Login || "");
         } catch (e) {
@@ -65,7 +67,7 @@ export default function Recurring() {
 
     const fetchHousehold = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/households/${householdId}`);
+            const res = await fetch(`${API_BASE}/households/${householdId}`);
             const data = await res.json();
             if (data.error === "") setHouseName(data.result?.HouseholdName || "");
         } catch (e) {
@@ -166,7 +168,7 @@ export default function Recurring() {
         try {
             if (isEdit && selectedChore) {
                 await fetch(
-                    `http://localhost:5000/api/recurring-chores/${selectedChore.RecurringTemplateID}`,
+                    `${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`,
                     {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -184,7 +186,7 @@ export default function Recurring() {
                     }
                 );
             } else {
-                await fetch("http://localhost:5000/api/recurring-chores", {
+                await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -214,7 +216,7 @@ export default function Recurring() {
         try {
             // Find the active chore instance linked to this recurring template
             const res = await fetch(
-                `http://localhost:5000/api/chores?HouseholdID=${householdId}`
+                `${API_BASE}/chores?HouseholdID=${householdId}`
             );
             const data = await res.json();
             if (data.error !== "") return;
@@ -242,13 +244,13 @@ export default function Recurring() {
 
             // Recovery path: force generation once, then try to locate active instance again.
             if (!instance) {
-                await fetch("http://localhost:5000/api/recurring-chores/generate", {
+                await fetch(`${API_BASE}/recurring-chores/generate`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });
 
                 const retryRes = await fetch(
-                    `http://localhost:5000/api/chores?HouseholdID=${householdId}`
+                    `${API_BASE}/chores?HouseholdID=${householdId}`
                 );
                 const retryData = await retryRes.json();
                 if (retryData.error === "") {
@@ -262,7 +264,7 @@ export default function Recurring() {
             }
 
             const completeRes = await fetch(
-                `http://localhost:5000/api/chores/${instance.ChoreID}/complete`,
+                `${API_BASE}/chores/${instance.ChoreID}/complete`,
                 {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -271,7 +273,7 @@ export default function Recurring() {
             );
             const completeData = await completeRes.json();
             if (completeData.error === "") {
-                await fetch("http://localhost:5000/api/recurring-chores/generate", {
+                await fetch(`${API_BASE}/recurring-chores/generate`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });

@@ -317,8 +317,106 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final bundle = _bundle;
+    const destinations = [
+      (
+        icon: Icons.list_alt_outlined,
+        label: 'Open',
+      ),
+      (
+        icon: Icons.push_pin_outlined,
+        label: 'Assigned',
+      ),
+      (
+        icon: Icons.check_circle_outline,
+        label: 'Mine',
+      ),
+      (
+        icon: Icons.repeat,
+        label: 'Recurring',
+      ),
+      (
+        icon: Icons.task_alt_outlined,
+        label: 'Completed',
+      ),
+      (
+        icon: Icons.settings_outlined,
+        label: 'Settings',
+      ),
+    ];
 
     return Scaffold(
+      drawer: Drawer(
+        backgroundColor: BrandTokens.creamSoft,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Center(child: BrandLogo(size: 28)),
+                    const SizedBox(height: 12),
+                    Text(
+                      bundle?.household.householdName ?? 'OurPlace',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: BrandTokens.ink,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Choose a section',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: BrandTokens.muted,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: BrandTokens.border),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: destinations.length,
+                  itemBuilder: (context, index) {
+                    final destination = destinations[index];
+                    final selected = _tabIndex == index;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          destination.icon,
+                          color: selected ? BrandTokens.creamSoft : BrandTokens.inkSoft,
+                        ),
+                        title: Text(destination.label),
+                        selected: selected,
+                        selectedTileColor: BrandTokens.terracotta,
+                        selectedColor: BrandTokens.creamSoft,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 2,
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() => _tabIndex = index);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: bundle == null
             ? const BrandLogo(size: 26)
@@ -332,39 +430,19 @@ class _HomeShellState extends State<HomeShell> {
         ],
       ),
       floatingActionButton: bundle == null
-          || _tabIndex == 4
+          || _tabIndex == 5
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _showCreateChoreSheet(recurring: _tabIndex == 3),
+              backgroundColor: BrandTokens.terracotta,
+              foregroundColor: BrandTokens.creamSoft,
               icon: const Icon(Icons.add),
-              label: Text(_tabIndex == 3 ? 'Recurring' : 'Chore'),
+              label: const Text(
+                'Create a\nChore',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, height: 1.1),
+              ),
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
-        onDestinationSelected: (value) => setState(() => _tabIndex = value),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            label: 'Open',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.push_pin_outlined),
-            label: 'Assigned',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.check_circle_outline),
-            label: 'Mine',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.repeat),
-            label: 'Recurring',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
-          ),
-        ],
-      ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -378,7 +456,7 @@ class _HomeShellState extends State<HomeShell> {
                     child: ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        if (_tabIndex != 4) ...[
+                        if (_tabIndex != 5) ...[
                           _HeaderCard(
                             bundle: bundle,
                             tabIndex: _tabIndex,
@@ -424,6 +502,8 @@ class _HomeShellState extends State<HomeShell> {
         );
       case 3:
         return _buildRecurring(bundle);
+      case 4:
+        return _buildCompleted(bundle);
       default:
         return _buildSettings(bundle);
     }
@@ -530,6 +610,34 @@ class _HomeShellState extends State<HomeShell> {
                   ],
                 ),
               ),
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  List<Widget> _buildCompleted(DashboardBundle bundle) {
+    if (bundle.completedChores.isEmpty) {
+      return const [
+        EmptyState(
+          title: 'No completed chores yet',
+          subtitle: 'Completed chores will show up here.',
+          icon: Icons.task_alt_outlined,
+        ),
+      ];
+    }
+
+    return bundle.completedChores
+        .map(
+          (chore) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ChoreCard(
+              chore: chore,
+              assigneeLabel: chore.completedAt == null
+                  ? (chore.assignedToUserId == null
+                      ? 'Unassigned'
+                      : 'Assigned to ${_userName(bundle, chore.assignedToUserId)}')
+                  : 'Completed ${DateFormat.yMMMd().format(chore.completedAt!)}',
             ),
           ),
         )
@@ -796,6 +904,13 @@ class _HeaderCard extends StatelessWidget {
       case 3:
         return [
           _HeaderStat('Recurring chores', bundle.recurringChores.length),
+          _HeaderStat('Completed', bundle.completedChores.length),
+          _HeaderStat('Overdue', overdueCount),
+          _HeaderStat('Done this month', doneThisMonth),
+        ];
+      case 4:
+        return [
+          _HeaderStat('Completed chores', bundle.completedChores.length),
           _HeaderStat('Mine today', myToday),
           _HeaderStat('Overdue', overdueCount),
           _HeaderStat('Done this month', doneThisMonth),

@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
 
+const API_BASE = "/api";
+
 export default function Settings() {
     const navigate = useNavigate();
     const [activeSideItem, setActiveSideItem] = useState("Settings");
 
     const userId = Number(localStorage.getItem("userId"));
     const householdId = Number(localStorage.getItem("householdId"));
-    const token = localStorage.getItem("token");
 
     // ── USER ──
     const [firstName, setFirstName] = useState("");
@@ -55,13 +56,9 @@ export default function Settings() {
     // 🔹 LOAD USER + MEMBERS
     // ─────────────────────────────
     useEffect(() => {
-        if (!userId || !token) return;
+        if (!userId) return;
 
-        fetch(`http://localhost:5000/api/users/${userId}`, {
-            headers: {
-                Authorization: "Bearer " + token
-            }
-        })
+        fetch(`${API_BASE}/users/${userId}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.error) {
@@ -71,23 +68,15 @@ export default function Settings() {
 
                     const hId = data.result.HouseholdID;
                     if (hId) {
-                        localStorage.setItem("householdId", String(hId));
+                        localStorage.setItem("householdId", hId);
 
-                        fetch(`http://localhost:5000/api/households/${hId}`, {
-                            headers: {
-                                Authorization: "Bearer " + token
-                            }
-                        })
+                        fetch(`${API_BASE}/households/${hId}`)
                             .then(res => res.json())
                             .then(hData => {
                                 if (!hData.error) setHouseName(hData.result.HouseholdName);
                             });
 
-                        fetch(`http://localhost:5000/api/users/household/${hId}`, {
-                            headers: {
-                                Authorization: "Bearer " + token
-                            }
-                        })
+                        fetch(`${API_BASE}/users/household/${hId}`)
                             .then(res => res.json())
                             .then(mData => {
                                 if (!mData.error) {
@@ -98,26 +87,45 @@ export default function Settings() {
                     }
                 }
             });
-    }, [userId, token]);
+    }, [userId]);
 
     // ─────────────────────────────
     // 🔹 UPDATE USER
     // ─────────────────────────────
     const handleSave = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+            const res = await fetch(`${API_BASE}/users/${userId}`, {
                 method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token
-                },
-                body: JSON.stringify({ FirstName: firstName, LastName: lastName, Email: email })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    FirstName: firstName,
+                    LastName: lastName,
+                    Email: email
+                })
             });
+
             const data = await res.json();
+
             if (data.error) {
                 setSaveMessage("❌ " + data.error);
             } else {
-                setSaveMessage("✅ Profile updated!");
+                setMembers(prev =>
+                    prev.map(m =>
+                        m.UserID === userId
+                            ? { ...m, FirstName: firstName, LastName: lastName, Email: email }
+                            : m
+                    )
+                );
+
+                setHousemates(prev =>
+                    prev.map(m =>
+                        m.UserID === userId
+                            ? { ...m, FirstName: firstName, LastName: lastName, Email: email }
+                            : m
+                    )
+                );
+
+                setSaveMessage("📩 Check your new email to confirm the change.");
                 setTimeout(() => setSaveMessage(""), 3000);
             }
         } catch (err) {
@@ -143,13 +151,10 @@ export default function Settings() {
             const body = mode === "email" ? { Email: inviteEmail.trim() } : {};
 
             const res = await fetch(
-                `http://localhost:5000/api/households/${householdId}/invite`,
+                `${API_BASE}/households/${householdId}/invite`,
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: "Bearer " + token
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body)
                 }
             );
@@ -191,17 +196,47 @@ export default function Settings() {
     // ─────────────────────────────
     // 🔹 REMOVE USER (UI ONLY)
     // ─────────────────────────────
-    const handleRemove = () => {
-        alert("Leave Household endpoint not implemented yet");
+    const handleRemove = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const userId = localStorage.getItem("userId");
+
+            const res = await fetch(
+                `${API_BASE}/users/${userId}/remove-from-household`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    }
+                }
+            );
+
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            localStorage.setItem("householdId", "");
+
+            alert("You left the household");
+
+            window.location.href = "/";
+
+        } catch (e) {
+            alert("Something went wrong");
+        }
     };
 
     // ─────────────────────────────
     // 🔹 SIGN OUT
     // ─────────────────────────────
     const handleSignOut = () => {
+        localStorage.removeItem("token");
         localStorage.removeItem("userId");
         localStorage.removeItem("householdId");
-        localStorage.removeItem("token");
         navigate("/");
     };
 
@@ -315,6 +350,7 @@ export default function Settings() {
                         <div className="card-body">
                             <div className="card-title">🏠 Invite a Housemate</div>
 
+                            {/* Mode toggle */}
                             <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
                                 <button
                                     className={inviteMode === "email" ? "tb-btn" : "modal-cancel"}
@@ -338,6 +374,7 @@ export default function Settings() {
                                 </button>
                             </div>
 
+                            {/* Email input row (code mode has no extra UI — code appears below) */}
                             {inviteMode === "email" && (
                                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                                     <input
@@ -354,6 +391,7 @@ export default function Settings() {
                                 </div>
                             )}
 
+                            {/* Invite code reveal */}
                             {inviteMode === "code" && inviteCode && (
                                 <div style={{
                                     padding: "14px 16px",
@@ -379,6 +417,7 @@ export default function Settings() {
                                 </div>
                             )}
 
+                            {/* Status message */}
                             {inviteMessage && (
                                 <div style={{ marginTop: "10px", fontSize: "14px", opacity: 0.8 }}>
                                     {inviteMessage}
@@ -405,7 +444,7 @@ export default function Settings() {
                                                 }}
                                             >
                                                 <span style={{ fontWeight: 500, flex: 1 }}>{getDisplayName(m)}</span>
-                                                {m.UserID === userId && (
+                                                {m.UserID === userId && members.length > 1 && (
                                                     <button
                                                         onClick={() => handleRemove()}
                                                         style={{

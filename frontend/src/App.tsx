@@ -12,6 +12,7 @@ import Recurring from './pages/Recurring.tsx';
 import Settings from './pages/Settings.tsx';
 import VerifyEmail from './pages/VerifyEmail.tsx';
 import ResetPassword from './pages/ResetPassword.tsx';
+import VerifyEmailChange from './pages/VerifyEmailChange.tsx';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email-change" element={<VerifyEmailChange />} />
       </Routes>
     </BrowserRouter>
   );

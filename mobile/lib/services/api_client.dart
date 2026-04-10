@@ -3,8 +3,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import 'session_store.dart';
 
 class ApiClient {
+  ApiClient(this._sessionStore);
+
+  final SessionStore _sessionStore;
   final http.Client _client = http.Client();
 
   Future<Map<String, dynamic>> get(String path) async {
@@ -29,29 +33,34 @@ class ApiClient {
     Map<String, dynamic>? body,
   }) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
+    final session = _sessionStore.readSession();
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (session != null) 'Authorization': 'Bearer ${session.token}',
+    };
     late final http.Response response;
 
     try {
       if (method == 'POST') {
         response = await _client.post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: jsonEncode(body ?? <String, dynamic>{}),
         );
       } else if (method == 'PUT') {
         response = await _client.put(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: jsonEncode(body ?? <String, dynamic>{}),
         );
       } else if (method == 'PATCH') {
         response = await _client.patch(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: jsonEncode(body ?? <String, dynamic>{}),
         );
       } else {
-        response = await _client.get(uri);
+        response = await _client.get(uri, headers: headers);
       }
     } catch (_) {
       throw Exception(
@@ -65,6 +74,9 @@ class ApiClient {
         : jsonDecode(response.body) as Map<String, dynamic>;
     final error = decoded['error']?.toString() ?? '';
     if (response.statusCode >= 400 || error.isNotEmpty) {
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception('Your session expired. Please sign in again.');
+      }
       throw Exception(error.isEmpty ? 'Request failed (${response.statusCode})' : error);
     }
     return decoded;
