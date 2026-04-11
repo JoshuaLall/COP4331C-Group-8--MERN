@@ -1,18 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 module.exports = function (db) {
   const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+  const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+  const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
+  const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+  async function sendEmailOrLog({ to, subject, html, fallbackLink }) {
+    if (!resend) {
+      console.log(`Email change verification skipped for ${to}; RESEND_API_KEY is not configured.`);
+      console.log(`Email change verification link: ${fallbackLink}`);
+      return;
     }
-  });
+
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to,
+      subject,
+      html
+    });
+  }
 
   // GET /api/users/household/:householdId
   // incoming: HouseholdID
@@ -150,12 +162,12 @@ module.exports = function (db) {
             { expiresIn: '1d' }
           );
 
-          const verifyLink = `http://localhost:5173/verify-email-change?token=${verifyToken}`;
+          const verifyLink = `${FRONTEND_BASE_URL}/verify-email-change?token=${verifyToken}`;
 
-          await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+          await sendEmailOrLog({
             to: normalizedEmail,
             subject: 'Verify your new email',
+            fallbackLink: verifyLink,
             html: `
               <h2>Confirm your new email</h2>
               <p>Click below to confirm your email change:</p>
@@ -176,40 +188,6 @@ module.exports = function (db) {
       await db.collection('Users').updateOne(
         { UserID: userId },
         { $set: updateFields }
-      );
-
-      res.status(200).json({ error: '' });
-    } catch (e) {
-      res.status(500).json({ error: e.toString() });
-    }
-  });
-
-  // Verify email change
-  router.post('/verify-email-change', async (req, res) => {
-    try {
-      const { token } = req.body;
-
-      if (!token) {
-        return res.status(400).json({ error: 'Missing token' });
-      }
-
-      let decoded;
-      try {
-        decoded = jwt.verify(token, JWT_SECRET);
-      } catch {
-        return res.status(400).json({ error: 'Invalid or expired token' });
-      }
-
-      await db.collection('Users').updateOne(
-        { UserID: decoded.UserID },
-        {
-          $set: {
-            Email: decoded.PendingEmail,
-            PendingEmail: null,
-            EmailVerified: true,
-            UpdatedAt: new Date().toISOString()
-          }
-        }
       );
 
       res.status(200).json({ error: '' });
