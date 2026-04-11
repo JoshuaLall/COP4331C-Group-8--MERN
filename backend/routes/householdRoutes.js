@@ -1,14 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
+const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+async function sendEmailOrLog({ to, subject, html, fallbackLink }) {
+    if (!resend) {
+        console.log(`Household invite email skipped for ${to}; RESEND_API_KEY is not configured.`);
+        console.log(`Household invite link: ${fallbackLink}`);
+        return;
     }
-});
+
+    await resend.emails.send({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        html
+    });
+}
 
 module.exports = function (db) {
 
@@ -141,16 +154,17 @@ module.exports = function (db) {
             const inviteCode = await ensureHouseholdInviteCode(household);
 
             if (Email) {
-                const existingUser = await db.collection("Users").findOne({ Email: Email.toLowerCase() });
+                const normalizedEmail = String(Email).trim().toLowerCase();
+                const existingUser = await db.collection("Users").findOne({ Email: normalizedEmail });
                 if (existingUser && (household.MemberIDs || []).includes(existingUser.UserID)) {
                     return res.status(400).json({ error: "This person is already a member of your household." });
                 }
 
-                const joinLink = `http://localhost:5173/join?code=${inviteCode}&email=${encodeURIComponent(Email)}`;
-                await transporter.sendMail({
-                    from: "avatheboss56@gmail.com",
-                    to: Email,
+                const joinLink = `${FRONTEND_BASE_URL}/join?code=${inviteCode}&email=${encodeURIComponent(normalizedEmail)}`;
+                await sendEmailOrLog({
+                    to: normalizedEmail,
                     subject: "You've been invited to join a household on OurPlace!",
+                    fallbackLink: joinLink,
                     html: `
                         <h2>You're invited! 🏠</h2>
                         <p>Someone invited you to join their household on <strong>OurPlace</strong>.</p>
