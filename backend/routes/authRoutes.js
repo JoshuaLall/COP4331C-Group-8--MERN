@@ -55,6 +55,8 @@ module.exports = function (db, authenticateToken) {
   // incoming: FirstName, LastName, Email, Login, Password, InviteCode (optional)
   // outgoing: UserID, error
   router.post('/register', async (req, res) => {
+    console.log("REGISTER TEST VERSION 2");
+    
     try {
       const {
         FirstName,
