@@ -5,7 +5,26 @@ const router = express.Router();
 const { Resend } = require('resend');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
+const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+async function sendEmailOrLog({ to, subject, html, fallbackLabel, fallbackLink }) {
+  if (!resend) {
+    console.log(`${fallbackLabel} skipped for ${to}; RESEND_API_KEY is not configured.`);
+    console.log(`${fallbackLabel} link: ${fallbackLink}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject,
+    html
+  });
+}
 
 function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
@@ -115,13 +134,14 @@ module.exports = function (db, authenticateToken) {
       }
 
       const verifyToken = jwt.sign({ UserID: newUserID }, JWT_SECRET, { expiresIn: '1d' });
-      const verifyLink = `https://cop4331c.com/verify-email?token=${verifyToken}`;
+      const verifyLink = `${FRONTEND_BASE_URL}/verify-email?token=${verifyToken}`;
 
       try {
-        await resend.emails.send({
-          from: 'OurPlace <onboarding@resend.dev>',
+        await sendEmailOrLog({
           to: normalizedEmail,
           subject: 'Verify your OurPlace account',
+          fallbackLabel: 'Verification email',
+          fallbackLink: verifyLink,
           html: `
             <h2>Welcome to OurPlace!</h2>
             <p>Hi ${FirstName},</p>
@@ -162,6 +182,13 @@ module.exports = function (db, authenticateToken) {
         return res.status(401).json({ error: 'Invalid login', UserID: -1 });
       }
 
+      if (!user.EmailVerified) {
+        return res.status(403).json({
+          error: 'Email not verified. Please verify your email before logging in.',
+          UserID: -1
+        });
+      }
+
       const token = jwt.sign(
         { UserID: user.UserID, HouseholdID: user.HouseholdID },
         JWT_SECRET,
@@ -176,6 +203,101 @@ module.exports = function (db, authenticateToken) {
       });
 
     } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  // VERIFY EMAIL
+  router.post('/verify-email', async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ error: 'Missing token' });
+      }
+
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      const result = await db.collection('Users').updateOne(
+        { UserID: decoded.UserID },
+        {
+          $set: {
+            EmailVerified: true,
+            UpdatedAt: new Date().toISOString()
+          },
+          $unset: {
+            PendingEmail: ""
+          }
+        }
+      );
+
+      if (!result.matchedCount) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      console.error("VERIFY EMAIL ERROR:", e);
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  // VERIFY EMAIL CHANGE
+  router.post('/verify-email-change', async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ error: 'Missing token' });
+      }
+
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      const user = await db.collection('Users').findOne({ UserID: decoded.UserID });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (!decoded.PendingEmail || user.PendingEmail !== decoded.PendingEmail) {
+        return res.status(400).json({ error: 'This email change request is no longer valid.' });
+      }
+
+      const existing = await db.collection('Users').findOne({
+        Email: decoded.PendingEmail,
+        UserID: { $ne: decoded.UserID }
+      });
+
+      if (existing) {
+        return res.status(400).json({ error: 'That email is already in use.' });
+      }
+
+      await db.collection('Users').updateOne(
+        { UserID: decoded.UserID },
+        {
+          $set: {
+            Email: decoded.PendingEmail,
+            EmailVerified: true,
+            UpdatedAt: new Date().toISOString()
+          },
+          $unset: {
+            PendingEmail: ""
+          }
+        }
+      );
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      console.error("VERIFY EMAIL CHANGE ERROR:", e);
       res.status(500).json({ error: e.toString() });
     }
   });
@@ -237,19 +359,21 @@ module.exports = function (db, authenticateToken) {
       }
 
       const resetToken = jwt.sign({ UserID: user.UserID }, JWT_SECRET, { expiresIn: '15m' });
+      const resetLink = `${FRONTEND_BASE_URL}/reset-password?token=${resetToken}`;
 
       try {
-        await resend.emails.send({
-          from: 'OurPlace <onboarding@resend.dev>',
+        await sendEmailOrLog({
           to: user.Email,
           subject: 'Reset Your OurPlace Password',
+          fallbackLabel: 'Password reset email',
+          fallbackLink: resetLink,
           html: `
             <h2>Password Reset Request</h2>
             <p>Hi ${user.FirstName},</p>
             <p>We received a request to reset your password. Click the button below to reset it:</p>
-            <p><a href="https://cop4331c.com/reset-password?token=${resetToken}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a></p>
+            <p><a href="${resetLink}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a></p>
             <p>Or copy and paste this link into your browser:</p>
-            <p>https://cop4331c.com/reset-password?token=${resetToken}</p>
+            <p>${resetLink}</p>
             <p>This link will expire in 15 minutes.</p>
             <p>If you didn't request a password reset, please ignore this email.</p>
           `

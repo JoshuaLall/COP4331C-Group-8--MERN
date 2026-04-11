@@ -154,6 +154,8 @@ API runs on `http://localhost:5000`.
 Recommended environment variables:
 - `JWT_SECRET`
 - `RESEND_API_KEY`
+- `EMAIL_FROM`
+- `FRONTEND_BASE_URL`
 - `EMAIL_USER`
 - `EMAIL_PASS`
 - `MONGODB_URI` (recommended improvement)

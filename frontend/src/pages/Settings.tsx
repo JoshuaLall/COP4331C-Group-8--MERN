@@ -24,6 +24,7 @@ function getPasswordChecks(password: string): PasswordCheck[] {
 export default function Settings() {
     const navigate = useNavigate();
     const [activeSideItem, setActiveSideItem] = useState("Settings");
+    const token = localStorage.getItem("token");
 
     const userId = Number(localStorage.getItem("userId"));
     const householdId = Number(localStorage.getItem("householdId"));
@@ -33,6 +34,7 @@ export default function Settings() {
     const [lastName, setLastName] = useState("");
     const [login, setLogin] = useState("");
     const [email, setEmail] = useState("");
+    const [initialEmail, setInitialEmail] = useState("");
     const [saveMessage, setSaveMessage] = useState("");
 
     // PASSWORD
@@ -80,8 +82,16 @@ export default function Settings() {
 
     useEffect(() => {
         if (!userId) return;
+        if (!token) {
+            navigate("/");
+            return;
+        }
 
-        fetch(`${API_BASE}/users/${userId}`)
+        fetch(`${API_BASE}/users/${userId}`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
             .then((res) => res.json())
             .then((data) => {
                 if (!data.error) {
@@ -89,18 +99,27 @@ export default function Settings() {
                     setLastName(data.result.LastName || "");
                     setLogin(data.result.Login || "");
                     setEmail(data.result.Email || "");
+                    setInitialEmail(data.result.Email || "");
 
                     const hId = data.result.HouseholdID;
                     if (hId) {
                         localStorage.setItem("householdId", String(hId));
 
-                        fetch(`${API_BASE}/households/${hId}`)
+                        fetch(`${API_BASE}/households/${hId}`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        })
                             .then((res) => res.json())
                             .then((hData) => {
                                 if (!hData.error) setHouseName(hData.result.HouseholdName || "");
                             });
 
-                        fetch(`${API_BASE}/users/household/${hId}`)
+                        fetch(`${API_BASE}/users/household/${hId}`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        })
                             .then((res) => res.json())
                             .then((mData) => {
                                 if (!mData.error) {
@@ -112,7 +131,7 @@ export default function Settings() {
                 }
             })
             .catch((err) => console.log(err));
-    }, [userId]);
+    }, [navigate, token, userId]);
 
     const handleSave = async () => {
         try {
@@ -133,6 +152,7 @@ export default function Settings() {
             });
 
             const data = await res.json();
+            const emailChanged = email.trim().toLowerCase() !== initialEmail.trim().toLowerCase();
 
             if (data.error) {
                 setSaveMessage("❌ " + data.error);
@@ -154,6 +174,10 @@ export default function Settings() {
                 );
 
                 setSaveMessage("✅ Profile updated.");
+                if (emailChanged) {
+                    setInitialEmail(email);
+                }
+
                 setTimeout(() => setSaveMessage(""), 3000);
             }
         } catch (err) {

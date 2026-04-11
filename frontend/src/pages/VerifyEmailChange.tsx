@@ -18,7 +18,7 @@ export default function VerifyEmailChange() {
             }
 
             try {
-                const res = await fetch(`${API_BASE}/users/verify-email-change`, {
+                const res = await fetch(`${API_BASE}/auth/verify-email-change`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ token })
