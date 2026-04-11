@@ -2,27 +2,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-const dns = require('dns');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  family: 4,
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 20000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
@@ -55,6 +38,7 @@ module.exports = function (db, authenticateToken) {
       }
 
       const normalizedEmail = String(Email).toLowerCase().trim();
+      const normalizedLogin = String(Login).trim();
 
       let invitedHousehold = null;
       if (InviteCode) {
@@ -66,7 +50,7 @@ module.exports = function (db, authenticateToken) {
         }
       }
 
-      const existingLogin = await db.collection('Users').findOne({ Login });
+      const existingLogin = await db.collection('Users').findOne({ Login: normalizedLogin });
       if (existingLogin) {
         return res.status(400).json({ error: 'Login already exists', UserID: -1 });
       }
@@ -111,10 +95,10 @@ module.exports = function (db, authenticateToken) {
 
       await db.collection('Users').insertOne({
         UserID: newUserID,
-        FirstName,
-        LastName,
+        FirstName: String(FirstName).trim(),
+        LastName: LastName ? String(LastName).trim() : '',
         Email: normalizedEmail,
-        Login,
+        Login: normalizedLogin,
         Password: hashedPassword,
         HouseholdID: finalHouseholdId,
         EmailVerified: false,
@@ -132,8 +116,8 @@ module.exports = function (db, authenticateToken) {
       const verifyLink = `https://cop4331c.com/verify-email?token=${verifyToken}`;
 
       try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
+        await resend.emails.send({
+          from: 'onboarding@resend.dev',
           to: normalizedEmail,
           subject: 'Verify your OurPlace account',
           html: `<h2>Welcome to OurPlace!</h2>
@@ -161,7 +145,8 @@ module.exports = function (db, authenticateToken) {
         return res.status(400).json({ error: 'Login and Password required', UserID: -1 });
       }
 
-      const user = await db.collection('Users').findOne({ Login });
+      const normalizedLogin = String(Login).trim();
+      const user = await db.collection('Users').findOne({ Login: normalizedLogin });
 
       if (!user || !(await bcrypt.compare(Password, user.Password))) {
         return res.status(401).json({ error: 'Invalid login', UserID: -1 });
@@ -173,7 +158,12 @@ module.exports = function (db, authenticateToken) {
         { expiresIn: '1h' }
       );
 
-      res.status(200).json({ error: '', UserID: user.UserID, HouseholdID: user.HouseholdID, token });
+      res.status(200).json({
+        error: '',
+        UserID: user.UserID,
+        HouseholdID: user.HouseholdID,
+        token
+      });
 
     } catch (e) {
       res.status(500).json({ error: e.toString() });
@@ -185,24 +175,38 @@ module.exports = function (db, authenticateToken) {
     try {
       const { CurrentPassword, NewPassword } = req.body;
 
+      if (!CurrentPassword || !NewPassword) {
+        return res.status(400).json({ error: 'CurrentPassword and NewPassword are required' });
+      }
+
+      const passwordError = validatePassword(NewPassword);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+      }
+
       const user = await db.collection('Users').findOne({ UserID: req.user.UserID });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
       const isValid = await bcrypt.compare(CurrentPassword, user.Password);
       if (!isValid) {
-        return res.status(400).json({ error: "Incorrect current password" });
+        return res.status(400).json({ error: 'Incorrect current password' });
       }
 
       const hashedPassword = await bcrypt.hash(NewPassword, 10);
 
-      await db.collection("Users").updateOne(
+      await db.collection('Users').updateOne(
         { UserID: req.user.UserID },
-        { $set: { Password: hashedPassword } }
+        { $set: { Password: hashedPassword, UpdatedAt: new Date().toISOString() } }
       );
 
-      res.status(200).json({ error: "" });
+      res.status(200).json({ error: '' });
 
     } catch (err) {
-      res.status(500).json({ error: "Server error" });
+      console.log("CHANGE PASSWORD ERROR:", err);
+      res.status(500).json({ error: 'Server error' });
     }
   });
 
@@ -211,20 +215,25 @@ module.exports = function (db, authenticateToken) {
     try {
       const { Email } = req.body;
 
-      if (!Email) return res.status(400).json({ error: 'Email is required' });
+      if (!Email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
 
-      const user = await db.collection('Users').findOne({ Email: Email.toLowerCase().trim() });
+      const normalizedEmail = String(Email).toLowerCase().trim();
+      const user = await db.collection('Users').findOne({ Email: normalizedEmail });
 
-      if (!user) return res.status(200).json({ error: '' });
+      if (!user) {
+        return res.status(200).json({ error: '' });
+      }
 
       const resetToken = jwt.sign({ UserID: user.UserID }, JWT_SECRET, { expiresIn: '15m' });
 
       try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
+        await resend.emails.send({
+          from: 'onboarding@resend.dev',
           to: user.Email,
           subject: 'Reset Password',
-          html: `<a href="https://cop4331c.com/reset-password?token=${resetToken}">Reset</a>`
+          html: `<a href="https://cop4331c.com/reset-password?token=${resetToken}">Reset Password</a>`
         });
       } catch (err) {
         console.log("RESET EMAIL FAILED:", err);
@@ -233,6 +242,7 @@ module.exports = function (db, authenticateToken) {
       res.status(200).json({ error: '' });
 
     } catch (err) {
+      console.log("FORGOT PASSWORD ERROR:", err);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -242,18 +252,27 @@ module.exports = function (db, authenticateToken) {
     try {
       const { ResetToken, Password } = req.body;
 
-      const decoded = jwt.verify(ResetToken, JWT_SECRET);
+      if (!ResetToken || !Password) {
+        return res.status(400).json({ error: 'ResetToken and Password are required' });
+      }
 
+      const passwordError = validatePassword(Password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+      }
+
+      const decoded = jwt.verify(ResetToken, JWT_SECRET);
       const hashedPassword = await bcrypt.hash(Password, 10);
 
       await db.collection('Users').updateOne(
         { UserID: decoded.UserID },
-        { $set: { Password: hashedPassword } }
+        { $set: { Password: hashedPassword, UpdatedAt: new Date().toISOString() } }
       );
 
       res.status(200).json({ error: '' });
 
     } catch (e) {
+      console.log("RESET PASSWORD ERROR:", e);
       res.status(500).json({ error: e.toString() });
     }
   });
