@@ -294,6 +294,16 @@ export default function Settings() {
     };
 
     const handleRemove = async () => {
+        const isOnlyMember = members.length === 1;
+        const confirmMessage = isOnlyMember
+            ? "You are the only member in this household. Leaving will delete this household and its chores.\n\nPress OK to leave, or Cancel to stay."
+            : "Are you sure you want to leave this household?\n\nPress OK to leave, or Cancel to stay.";
+
+        const confirmed = window.confirm(confirmMessage);
+        if (!confirmed) {
+            return;
+        }
+
         try {
             const token = localStorage.getItem("token");
             const currentUserId = localStorage.getItem("userId");

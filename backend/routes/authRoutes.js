@@ -26,7 +26,7 @@ module.exports = function (db, authenticateToken) {
   // REGISTER
   router.post('/register', async (req, res) => {
     try {
-      const { FirstName, LastName, Email, Login, Password, InviteCode } = req.body;
+      const { FirstName, LastName, HouseholdName, Email, Login, Password, InviteCode } = req.body;
 
       if (!FirstName || !Email || !Login || !Password) {
         return res.status(400).json({ error: 'Missing required fields', UserID: -1 });
@@ -81,10 +81,12 @@ module.exports = function (db, authenticateToken) {
           : 1;
 
         const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const normalizedHouseholdName = HouseholdName ? String(HouseholdName).trim() : '';
+        const finalHouseholdName = normalizedHouseholdName || `${String(FirstName).trim()}'s Household`;
 
         await db.collection('Households').insertOne({
           HouseholdID: newHouseholdId,
-          HouseholdName: `${FirstName}'s Household`,
+          HouseholdName: finalHouseholdName,
           MemberIDs: [newUserID],
           InviteCode: inviteCode,
           CreatedAt: new Date().toISOString()

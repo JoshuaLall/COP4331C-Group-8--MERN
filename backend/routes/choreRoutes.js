@@ -223,6 +223,11 @@ module.exports = function (db) {
         return res.status(400).json({ error: 'ChoreID is required' });
       }
 
+      const existingChore = await db.collection('Chores').findOne({ ChoreID });
+      if (!existingChore) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
       const updateFields = {
         UpdatedAt: new Date().toISOString()
       };
@@ -240,8 +245,38 @@ module.exports = function (db) {
         { $set: updateFields }
       );
 
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: 'Chore not found' });
+      if (
+        AssignedToUserID !== undefined &&
+        existingChore.IsRecurring &&
+        existingChore.RecurringTemplateID
+      ) {
+        const normalizedAssignedUserId = AssignedToUserID ? Number(AssignedToUserID) : null;
+        const normalizedStatus = normalizedAssignedUserId ? 'assigned' : 'open';
+
+        await db.collection('RecurringChores').updateOne(
+          { RecurringTemplateID: Number(existingChore.RecurringTemplateID) },
+          {
+            $set: {
+              DefaultAssignedUserID: normalizedAssignedUserId,
+              UpdatedAt: new Date().toISOString()
+            }
+          }
+        );
+
+        await db.collection('Chores').updateMany(
+          {
+            RecurringTemplateID: Number(existingChore.RecurringTemplateID),
+            HouseholdID: Number(existingChore.HouseholdID),
+            Status: { $ne: 'completed' }
+          },
+          {
+            $set: {
+              AssignedToUserID: normalizedAssignedUserId,
+              Status: normalizedStatus,
+              UpdatedAt: new Date().toISOString()
+            }
+          }
+        );
       }
 
       res.status(200).json({ error: '' });

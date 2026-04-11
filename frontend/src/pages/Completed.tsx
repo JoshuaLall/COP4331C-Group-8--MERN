@@ -204,12 +204,12 @@ export default function Completed() {
                 <div className="sb-house">🏠 {houseName || "Your Household"}</div>
 
                 <div className="sb-item" onClick={() => navigate("/overview")}>📊 Overview</div>
-                <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
-                <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
-                <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
-                <div className="sb-item active">🏁 Completed</div>
-                <div className="sb-item" onClick={() => navigate("/recurring")}>🔁 Recurring</div>
-                <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
+                <div className="sb-item" onClick={() => navigate("/dashboard")}>▤ Open Chores</div>
+                <div className="sb-item" onClick={() => navigate("/assigned")}>⌖ Assigned</div>
+                <div className="sb-item" onClick={() => navigate("/my-chores")}>◉ My Chores</div>
+                <div className="sb-item active">✓ Completed</div>
+                <div className="sb-item" onClick={() => navigate("/recurring")}>↻ Recurring</div>
+                <div className="sb-item" onClick={() => navigate("/settings")}>⚙ Settings</div>
 
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>

@@ -210,14 +210,14 @@ export default function Assigned() {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                         Title: form.Title,
-                         Description: form.Description,
-                         DueDate: form.DueDate || null,
-                         Priority: form.Priority,
-                         AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
-                         Status: form.AssignedToUserID ? "assigned" : "open"
-                        })
-                    });
+                        Title: form.Title,
+                        Description: form.Description,
+                        DueDate: form.DueDate || null,
+                        Priority: form.Priority,
+                        AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                        Status: form.AssignedToUserID ? "assigned" : "open"
+                    })
+                });
             } else {
                 if (isRecurring) {
                     await fetch(`${API_BASE}/recurring-chores`, {
@@ -300,27 +300,27 @@ export default function Assigned() {
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>
-                    📋 Open Chores
+                    ▤ Open Chores
                 </div>
 
                 <div className="sb-item active">
-                    📌 Assigned
+                    ⌖ Assigned
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>
-                    ✅ My Chores
+                    ◉ My Chores
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/completed")}>
-                    🏁 Completed
+                    ✓ Completed
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/recurring")}>
-                    🔁 Recurring
+                    ↻ Recurring
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/settings")}>
-                    ⚙️ Settings
+                    ⚙ Settings
                 </div>
 
                 <div className="sb-mates">

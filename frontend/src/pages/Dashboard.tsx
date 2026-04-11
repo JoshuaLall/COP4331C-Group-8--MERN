@@ -232,14 +232,14 @@ export default function Dashboard() {
                 </div>
 
                 <div className="sb-item active" aria-pressed="true">
-                    📋 Open Chores
+                    ▤ Open Chores
                 </div>
 
-                <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
-                <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
-                <div className="sb-item" onClick={() => navigate("/completed")}>🏁 Completed</div>
-                <div className="sb-item" onClick={() => navigate("/recurring")}>🔁 Recurring</div>
-                <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
+                <div className="sb-item" onClick={() => navigate("/assigned")}>⌖ Assigned</div>
+                <div className="sb-item" onClick={() => navigate("/my-chores")}>◉ My Chores</div>
+                <div className="sb-item" onClick={() => navigate("/completed")}>✓ Completed</div>
+                <div className="sb-item" onClick={() => navigate("/recurring")}>↻ Recurring</div>
+                <div className="sb-item" onClick={() => navigate("/settings")}>⚙ Settings</div>
 
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>

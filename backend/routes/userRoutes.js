@@ -243,60 +243,10 @@ module.exports = function (db) {
 
       const household = await db.collection('Households').findOne({ HouseholdID: householdId });
 
-      if (household && household.MemberIDs && household.MemberIDs.length === 1) {
-        return res.status(400).json({ error: 'Cannot leave your own household' });
-      }
-
       await db.collection('Households').updateOne(
         { HouseholdID: householdId },
         { $pull: { MemberIDs: userId } }
       );
-
-      const lastHousehold = await db
-        .collection('Households')
-        .find({ HouseholdID: { $exists: true } })
-        .sort({ HouseholdID: -1 })
-        .limit(1)
-        .toArray();
-
-      const newHouseholdId = lastHousehold.length > 0
-        ? Number(lastHousehold[0].HouseholdID) + 1
-        : 1;
-
-      let newInviteCode = '';
-      let codeExists = true;
-
-      while (codeExists) {
-        newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const existingHousehold = await db.collection('Households').findOne({ InviteCode: newInviteCode });
-        codeExists = !!existingHousehold;
-      }
-
-      await db.collection('Households').insertOne({
-        HouseholdID: newHouseholdId,
-        HouseholdName: `${user.FirstName || user.Login}'s Household`,
-        MemberIDs: [userId],
-        InviteCode: newInviteCode,
-        CreatedAt: new Date().toISOString()
-      });
-
-      await db.collection('Users').updateOne(
-        { UserID: userId },
-        {
-          $set: {
-            HouseholdID: newHouseholdId,
-            UpdatedAt: new Date().toISOString()
-          }
-        }
-      );
-
-      const updatedOldHousehold = await db.collection('Households').findOne({ HouseholdID: householdId });
-
-      if (updatedOldHousehold && (!updatedOldHousehold.MemberIDs || updatedOldHousehold.MemberIDs.length === 0)) {
-        await db.collection('Households').deleteOne({ HouseholdID: householdId });
-        await db.collection('Chores').deleteMany({ HouseholdID: householdId });
-        await db.collection('RecurringChores').deleteMany({ HouseholdID: householdId });
-      }
 
       await db.collection('Chores').updateMany(
         { AssignedToUserID: userId, HouseholdID: householdId },
@@ -317,6 +267,24 @@ module.exports = function (db) {
           }
         }
       );
+
+      await db.collection('Users').updateOne(
+        { UserID: userId },
+        {
+          $set: {
+            HouseholdID: null,
+            UpdatedAt: new Date().toISOString()
+          }
+        }
+      );
+
+      const updatedOldHousehold = await db.collection('Households').findOne({ HouseholdID: householdId });
+
+      if (updatedOldHousehold && (!updatedOldHousehold.MemberIDs || updatedOldHousehold.MemberIDs.length === 0)) {
+        await db.collection('Households').deleteOne({ HouseholdID: householdId });
+        await db.collection('Chores').deleteMany({ HouseholdID: householdId });
+        await db.collection('RecurringChores').deleteMany({ HouseholdID: householdId });
+      }
 
       res.status(200).json({ error: '' });
     } catch (e) {

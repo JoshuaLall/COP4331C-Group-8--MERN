@@ -26,6 +26,7 @@ export default function Register() {
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [householdName, setHouseholdName] = useState("");
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -60,6 +61,7 @@ export default function Register() {
                 body: JSON.stringify({
                     FirstName: firstName,
                     LastName: lastName,
+                    HouseholdName: householdName,
                     Login: username,
                     Email: email,
                     Password: password
@@ -175,6 +177,14 @@ export default function Register() {
                     placeholder="jamie@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                />
+
+                <label className="lbl">Household Name</label>
+                <input
+                    className="inp"
+                    placeholder="The Lee Household"
+                    value={householdName}
+                    onChange={(e) => setHouseholdName(e.target.value)}
                 />
 
                 <div className="inp-row">

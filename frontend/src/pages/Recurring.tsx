@@ -190,24 +190,24 @@ export default function Recurring() {
                 if (allData.error === "") {
                     const instances = (allData.results || []).filter(
                         (c: any) =>
-                        Number(c.RecurringTemplateID) === Number(selectedChore.RecurringTemplateID) &&
-                        c.Status !== "completed"
+                            Number(c.RecurringTemplateID) === Number(selectedChore.RecurringTemplateID) &&
+                            c.Status !== "completed"
                     );
                     for (const instance of instances) {
                         await fetch(`${API_BASE}/chores/${instance.ChoreID}`, {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                            Title: form.Title,
-                            Description: form.Description,
-                            Priority: form.Priority,
-                            AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
-                            Status: form.AssignedToUserID ? "assigned" : "open"
-                        })
-                    });
+                                Title: form.Title,
+                                Description: form.Description,
+                                Priority: form.Priority,
+                                AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
+                                Status: form.AssignedToUserID ? "assigned" : "open"
+                            })
+                        });
+                    }
                 }
-            }
-        } else {
+            } else {
                 await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -323,12 +323,12 @@ export default function Recurring() {
                     📊 Overview
                 </div>
 
-                <div className="sb-item" onClick={() => navigate("/dashboard")}>📋 Open Chores</div>
-                <div className="sb-item" onClick={() => navigate("/assigned")}>📌 Assigned</div>
-                <div className="sb-item" onClick={() => navigate("/my-chores")}>✅ My Chores</div>
-                <div className="sb-item" onClick={() => navigate("/completed")}>🏁 Completed</div>
-                <div className="sb-item active">🔁 Recurring</div>
-                <div className="sb-item" onClick={() => navigate("/settings")}>⚙️ Settings</div>
+                <div className="sb-item" onClick={() => navigate("/dashboard")}>▤ Open Chores</div>
+                <div className="sb-item" onClick={() => navigate("/assigned")}>⌖ Assigned</div>
+                <div className="sb-item" onClick={() => navigate("/my-chores")}>◉ My Chores</div>
+                <div className="sb-item" onClick={() => navigate("/completed")}>✓ Completed</div>
+                <div className="sb-item active">↻ Recurring</div>
+                <div className="sb-item" onClick={() => navigate("/settings")}>⚙ Settings</div>
 
                 <div className="sb-mates">
                     <div className="sb-mates-label">Housemates</div>
