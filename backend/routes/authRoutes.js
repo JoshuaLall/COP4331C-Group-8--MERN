@@ -2,10 +2,18 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Create transporter using Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
@@ -116,22 +124,31 @@ module.exports = function (db, authenticateToken) {
       const verifyLink = `https://cop4331c.com/verify-email?token=${verifyToken}`;
 
       try {
-        await resend.emails.send({
-          from: 'onboarding@resend.dev',
+        await transporter.sendMail({
+          from: `"OurPlace" <${process.env.EMAIL_USER}>`,
           to: normalizedEmail,
           subject: 'Verify your OurPlace account',
-          html: `<h2>Welcome to OurPlace!</h2>
-                 <p>Please verify your email.</p>
-                 <a href="${verifyLink}">Verify Email</a>`
+          html: `
+            <h2>Welcome to OurPlace!</h2>
+            <p>Hi ${FirstName},</p>
+            <p>Thank you for registering! Please verify your email address to complete your account setup.</p>
+            <p><a href="${verifyLink}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Verify Email</a></p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p>${verifyLink}</p>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you didn't create an account, please ignore this email.</p>
+          `
         });
+        console.log(`✓ Verification email sent to ${normalizedEmail}`);
       } catch (e) {
-        console.log("EMAIL FAILED:", e);
+        console.error("EMAIL FAILED:", e);
+        // Email failed but user was created - you may want to handle this differently
       }
 
       res.status(200).json({ error: '', UserID: newUserID });
 
     } catch (e) {
-      console.log("REGISTER ERROR:", e);
+      console.error("REGISTER ERROR:", e);
       res.status(500).json({ error: e.toString(), UserID: -1 });
     }
   });
@@ -205,7 +222,7 @@ module.exports = function (db, authenticateToken) {
       res.status(200).json({ error: '' });
 
     } catch (err) {
-      console.log("CHANGE PASSWORD ERROR:", err);
+      console.error("CHANGE PASSWORD ERROR:", err);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -229,20 +246,30 @@ module.exports = function (db, authenticateToken) {
       const resetToken = jwt.sign({ UserID: user.UserID }, JWT_SECRET, { expiresIn: '15m' });
 
       try {
-        await resend.emails.send({
-          from: 'onboarding@resend.dev',
+        await transporter.sendMail({
+          from: `"OurPlace" <${process.env.EMAIL_USER}>`,
           to: user.Email,
-          subject: 'Reset Password',
-          html: `<a href="https://cop4331c.com/reset-password?token=${resetToken}">Reset Password</a>`
+          subject: 'Reset Your OurPlace Password',
+          html: `
+            <h2>Password Reset Request</h2>
+            <p>Hi ${user.FirstName},</p>
+            <p>We received a request to reset your password. Click the button below to reset it:</p>
+            <p><a href="https://cop4331c.com/reset-password?token=${resetToken}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a></p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p>https://cop4331c.com/reset-password?token=${resetToken}</p>
+            <p>This link will expire in 15 minutes.</p>
+            <p>If you didn't request a password reset, please ignore this email.</p>
+          `
         });
+        console.log(`✓ Password reset email sent to ${user.Email}`);
       } catch (err) {
-        console.log("RESET EMAIL FAILED:", err);
+        console.error("RESET EMAIL FAILED:", err);
       }
 
       res.status(200).json({ error: '' });
 
     } catch (err) {
-      console.log("FORGOT PASSWORD ERROR:", err);
+      console.error("FORGOT PASSWORD ERROR:", err);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -272,7 +299,7 @@ module.exports = function (db, authenticateToken) {
       res.status(200).json({ error: '' });
 
     } catch (e) {
-      console.log("RESET PASSWORD ERROR:", e);
+      console.error("RESET PASSWORD ERROR:", e);
       res.status(500).json({ error: e.toString() });
     }
   });
