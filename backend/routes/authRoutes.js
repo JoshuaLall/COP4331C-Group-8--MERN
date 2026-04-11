@@ -2,18 +2,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-
-// Create transporter using Gmail
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
@@ -124,8 +116,8 @@ module.exports = function (db, authenticateToken) {
       const verifyLink = `https://cop4331c.com/verify-email?token=${verifyToken}`;
 
       try {
-        await transporter.sendMail({
-          from: `"OurPlace" <${process.env.EMAIL_USER}>`,
+        await resend.emails.send({
+          from: 'OurPlace <onboarding@resend.dev>',
           to: normalizedEmail,
           subject: 'Verify your OurPlace account',
           html: `
@@ -142,7 +134,6 @@ module.exports = function (db, authenticateToken) {
         console.log(`✓ Verification email sent to ${normalizedEmail}`);
       } catch (e) {
         console.error("EMAIL FAILED:", e);
-        // Email failed but user was created - you may want to handle this differently
       }
 
       res.status(200).json({ error: '', UserID: newUserID });
@@ -246,8 +237,8 @@ module.exports = function (db, authenticateToken) {
       const resetToken = jwt.sign({ UserID: user.UserID }, JWT_SECRET, { expiresIn: '15m' });
 
       try {
-        await transporter.sendMail({
-          from: `"OurPlace" <${process.env.EMAIL_USER}>`,
+        await resend.emails.send({
+          from: 'OurPlace <onboarding@resend.dev>',
           to: user.Email,
           subject: 'Reset Your OurPlace Password',
           html: `
