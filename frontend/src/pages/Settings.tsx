@@ -178,12 +178,12 @@ export default function Settings() {
                     )
                 );
 
-                setSaveMessage("✅ Profile updated.");
+                setSaveMessage("Check your inbox to verify your new email. Your profile will update once verification is complete.");
                 if (emailChanged) {
                     setInitialEmail(email);
                 }
 
-                setTimeout(() => setSaveMessage(""), 3000);
+                setTimeout(() => setSaveMessage(""), 10000);
             }
         } catch (err) {
             console.log(err);
