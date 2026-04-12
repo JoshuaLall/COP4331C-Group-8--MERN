@@ -181,8 +181,13 @@ module.exports = function (db, authenticateToken) {
       const normalizedLogin = String(Login).trim();
       const user = await db.collection('Users').findOne({ Login: normalizedLogin });
 
-      if (!user || !(await bcrypt.compare(Password, user.Password))) {
-        return res.status(401).json({ error: 'Invalid login', UserID: -1 });
+      if (!user) {
+        return res.status(404).json({ error: 'Account does not exist', UserID: -1 });
+      }
+
+      const passwordMatches = await bcrypt.compare(Password, user.Password);
+      if (!passwordMatches) {
+        return res.status(401).json({ error: 'Incorrect password', UserID: -1 });
       }
 
       if (!user.EmailVerified) {

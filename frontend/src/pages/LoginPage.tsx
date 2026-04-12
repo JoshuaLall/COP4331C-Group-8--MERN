@@ -72,7 +72,7 @@ export default function LoginPage() {
             }
 
             navigate("/overview");
-            
+
         } catch {
             setLoginError("Unable to sign in right now. Please try again.");
         } finally {
