@@ -618,7 +618,7 @@ export default function Settings() {
                                     <div
                                         key={i}
                                         style={{
-                                            color: check.passed ? "#1e8e3e" : "#c0392b",
+                                            color: check.passed ? "#0e5823" : "#9e2618",
                                             fontSize: "13px",
                                             fontWeight: 500
                                         }}
@@ -700,7 +700,7 @@ export default function Settings() {
                                     style={{
                                         padding: "14px 16px",
                                         borderRadius: "10px",
-                                        background: "#fff",
+                                        background: "#f6f2e3",
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "center",
@@ -714,7 +714,7 @@ export default function Settings() {
                                                 fontSize: "11px",
                                                 textTransform: "uppercase",
                                                 letterSpacing: "0.05em",
-                                                opacity: 0.5,
+                                                opacity: 0.8,
                                                 marginBottom: "4px"
                                             }}
                                         >

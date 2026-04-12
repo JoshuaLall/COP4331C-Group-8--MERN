@@ -300,27 +300,27 @@ export default function Assigned() {
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/dashboard")}>
-                    ▤ Open Chores
+                    📋 Open Chores
                 </div>
 
                 <div className="sb-item active">
-                    ⌖ Assigned
+                    📌 Assigned
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/my-chores")}>
-                    ◉ My Chores
+                    ✅ My Chores
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/completed")}>
-                    ✓ Completed
+                    🏁 Completed
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/recurring")}>
-                    ↻ Recurring
+                    🔁 Recurring
                 </div>
 
                 <div className="sb-item" onClick={() => navigate("/settings")}>
-                    ⚙ Settings
+                    ⚙️ Settings
                 </div>
 
                 <div className="sb-mates">

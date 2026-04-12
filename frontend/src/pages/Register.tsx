@@ -203,7 +203,7 @@ export default function Register() {
                                 <div
                                     key={index}
                                     style={{
-                                        color: check.passed ? "#1e8e3e" : "#c0392b",
+                                        color: check.passed ? "#0e5823" : "#9e2618",
                                         fontSize: "13px",
                                         marginTop: "4px",
                                         lineHeight: "1.3"
