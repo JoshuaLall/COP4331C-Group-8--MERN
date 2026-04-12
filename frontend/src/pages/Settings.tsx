@@ -490,8 +490,7 @@ export default function Settings() {
                             if (label === "Settings") navigate("/settings");
                         }}
                     >
-                        <span>{icon}</span>
-                        {label}
+                        {icon}{" "}{label}
                     </div>
                 ))}
 
