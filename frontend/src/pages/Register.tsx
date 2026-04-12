@@ -36,7 +36,7 @@ export default function Register() {
     const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
 
     const handleRegister = async () => {
-        if (!firstName || !username || !email || !password) {
+        if (!firstName || !username || !email || !password || !householdName.trim()) {
             alert("Please fill in all required fields.");
             return;
         }
@@ -179,7 +179,7 @@ export default function Register() {
                     onChange={(e) => setEmail(e.target.value)}
                 />
 
-                <label className="lbl">Household Name</label>
+                <label className="lbl">Household Name *</label>
                 <input
                     className="inp"
                     placeholder="The Lee Household"

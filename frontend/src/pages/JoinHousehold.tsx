@@ -1,13 +1,30 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Login.css";
-import { getPasswordStrength, validatePassword } from "../utils/passwordValidation";
 
 const API_BASE = "/api";
 
+type PasswordCheck = {
+    label: string;
+    passed: boolean;
+};
+
+function getPasswordChecks(password: string): PasswordCheck[] {
+    return [
+        { label: "At least 8 characters", passed: password.length >= 8 },
+        { label: "72 characters or fewer", passed: password.length <= 72 },
+        { label: "At least one uppercase letter", passed: /[A-Z]/.test(password) },
+        { label: "At least one lowercase letter", passed: /[a-z]/.test(password) },
+        { label: "At least one number", passed: /\d/.test(password) },
+        { label: "At least one special character", passed: /[^A-Za-z0-9]/.test(password) },
+        { label: "No spaces", passed: !/\s/.test(password) },
+    ];
+}
+
 export default function JoinHousehold() {
     const navigate = useNavigate();
+    const [entryMode, setEntryMode] = useState<"existing" | "register">("existing");
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -17,8 +34,7 @@ export default function JoinHousehold() {
     const [confirm, setConfirm] = useState("");
     const [inviteCode, setInviteCode] = useState("");
     const [loading, setLoading] = useState(false);
-    const passwordError = validatePassword(password);
-    const passwordStrength = getPasswordStrength(password);
+    const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -40,8 +56,9 @@ export default function JoinHousehold() {
             return;
         }
 
-        if (passwordError) {
-            alert(passwordError);
+        const hasFailedCheck = passwordChecks.some((check) => !check.passed);
+        if (hasFailedCheck) {
+            alert("Password does not meet all requirements.");
             return;
         }
 
@@ -133,79 +150,7 @@ export default function JoinHousehold() {
                 </div>
 
                 <div className="brand">Our<em>Place</em></div>
-                <div className="sub">Create your account and verify your email to join household</div>
-
-                <div className="inp-row">
-                    <div className="inp-col">
-                        <label className="lbl">First Name *</label>
-                        <input
-                            className="inp"
-                            placeholder="Jamie"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                        />
-                    </div>
-                    <div className="inp-col">
-                        <label className="lbl">Last Name</label>
-                        <input
-                            className="inp"
-                            placeholder="Lee"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <label className="lbl">Username *</label>
-                <input
-                    className="inp"
-                    placeholder="jamielee"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                />
-
-                <label className="lbl">Email *</label>
-                <input
-                    className="inp"
-                    type="email"
-                    placeholder="jamie@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-
-                <div className="inp-row">
-                    <div className="inp-col">
-                        <label className="lbl">Password *</label>
-                        <input
-                            className="inp"
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
-                    <div className="inp-col">
-                        <label className="lbl">Confirm *</label>
-                        <input
-                            className="inp"
-                            type="password"
-                            placeholder="••••••••"
-                            value={confirm}
-                            onChange={(e) => setConfirm(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                {password && (
-                    <div style={{ marginTop: "8px", fontSize: "14px", color: "#5b4636" }}>
-                        <div>Password strength: <strong>{passwordStrength}</strong></div>
-                        {passwordError && <div style={{ color: "#c0392b", marginTop: "4px" }}>{passwordError}</div>}
-                    </div>
-                )}
-
-                <div className="household-divider">
-                    <span>🔑 Your Invite Code</span>
-                </div>
+                <div className="sub">Use an invite code to log in or create your account</div>
 
                 <label className="lbl">Invite Code *</label>
                 <input
@@ -215,21 +160,131 @@ export default function JoinHousehold() {
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 />
 
-                <button
-                    className="btn-main"
-                    onClick={handleJoin}
-                    disabled={loading}
-                    style={{ marginTop: "8px" }}
-                >
-                    {loading ? "Creating..." : "Create Account"}
-                </button>
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px", marginBottom: "12px" }}>
+                    <button
+                        className={entryMode === "existing" ? "btn-main" : "btn-sec"}
+                        onClick={() => {
+                            if (!inviteCode.trim()) {
+                                alert("Please enter an invite code first.");
+                                return;
+                            }
+                            navigate(`/?code=${inviteCode.trim().toUpperCase()}`);
+                        }}
+                        type="button"
+                        style={{ flex: 1 }}
+                    >
+                        Existing Account
+                    </button>
+                    <button
+                        className={entryMode === "register" ? "btn-main" : "btn-sec"}
+                        onClick={() => setEntryMode("register")}
+                        type="button"
+                        style={{ flex: 1 }}
+                    >
+                        Register New Account
+                    </button>
+                </div>
+
+                {entryMode === "register" && (
+                    <>
+                        <div className="household-divider">
+                            <span>📝 Create Your Account</span>
+                        </div>
+
+                        <div className="inp-row">
+                            <div className="inp-col">
+                                <label className="lbl">First Name *</label>
+                                <input
+                                    className="inp"
+                                    placeholder="Jamie"
+                                    value={firstName}
+                                    onChange={(e) => setFirstName(e.target.value)}
+                                />
+                            </div>
+                            <div className="inp-col">
+                                <label className="lbl">Last Name</label>
+                                <input
+                                    className="inp"
+                                    placeholder="Lee"
+                                    value={lastName}
+                                    onChange={(e) => setLastName(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <label className="lbl">Username *</label>
+                        <input
+                            className="inp"
+                            placeholder="jamielee"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+
+                        <label className="lbl">Email *</label>
+                        <input
+                            className="inp"
+                            type="email"
+                            placeholder="jamie@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+
+                        <div className="inp-row">
+                            <div className="inp-col">
+                                <label className="lbl">Password *</label>
+                                <input
+                                    className="inp"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                            <div className="inp-col">
+                                <label className="lbl">Confirm *</label>
+                                <input
+                                    className="inp"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={confirm}
+                                    onChange={(e) => setConfirm(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: "10px" }}>
+                            {passwordChecks.map((check, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        color: check.passed ? "#1e8e3e" : "#c0392b",
+                                        fontSize: "13px",
+                                        marginTop: "4px",
+                                        lineHeight: "1.3"
+                                    }}
+                                >
+                                    {check.passed ? "✓" : "✗"} {check.label}
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            className="btn-main"
+                            onClick={handleJoin}
+                            disabled={loading}
+                            style={{ marginTop: "8px" }}
+                        >
+                            {loading ? "Creating..." : "Create Account"}
+                        </button>
+                    </>
+                )}
 
                 <div className="links-row" style={{ marginTop: "16px" }}>
                     <a
                         href="#"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/?code=${inviteCode}`);
+                            navigate(`/?code=${inviteCode.trim().toUpperCase()}`);
                         }}
                     >
                         ← Back to sign in
