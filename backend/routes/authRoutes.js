@@ -69,6 +69,10 @@ module.exports = function (db, authenticateToken) {
         }
       }
 
+      if (!invitedHousehold && !String(HouseholdName || '').trim()) {
+        return res.status(400).json({ error: 'Household name is required', UserID: -1 });
+      }
+
       const existingLogin = await db.collection('Users').findOne({ Login: normalizedLogin });
       if (existingLogin) {
         return res.status(400).json({ error: 'Login already exists', UserID: -1 });
@@ -100,8 +104,7 @@ module.exports = function (db, authenticateToken) {
           : 1;
 
         const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const normalizedHouseholdName = HouseholdName ? String(HouseholdName).trim() : '';
-        const finalHouseholdName = normalizedHouseholdName || `${String(FirstName).trim()}'s Household`;
+        const finalHouseholdName = String(HouseholdName).trim();
 
         await db.collection('Households').insertOne({
           HouseholdID: newHouseholdId,

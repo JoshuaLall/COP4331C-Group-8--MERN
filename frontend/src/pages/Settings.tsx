@@ -52,6 +52,11 @@ export default function Settings() {
     const [isInviting, setIsInviting] = useState(false);
     const [housemates, setHousemates] = useState<any[]>([]);
     const [houseName, setHouseName] = useState("");
+    const [deleteMessage, setDeleteMessage] = useState("");
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const [transferInviteCode, setTransferInviteCode] = useState("");
+    const [transferMessage, setTransferMessage] = useState("");
+    const [isTransferring, setIsTransferring] = useState(false);
 
     const passwordChecks = getPasswordChecks(newPassword);
 
@@ -360,6 +365,105 @@ export default function Settings() {
         localStorage.removeItem("userId");
         localStorage.removeItem("householdId");
         navigate("/");
+    };
+
+    const handleTransferHousehold = async () => {
+        setTransferMessage("");
+
+        const inviteCode = transferInviteCode.trim().toUpperCase();
+        if (!inviteCode) {
+            setTransferMessage("❌ Enter an invite code first.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Transfer to a new household?\n\nYou will leave your current household, and any chores assigned to you there will become unassigned/open."
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsTransferring(true);
+            const token = localStorage.getItem("token");
+            const currentUserId = Number(localStorage.getItem("userId"));
+
+            const res = await fetch(`${API_BASE}/households/join`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    InviteCode: inviteCode,
+                    UserID: currentUserId
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                setTransferMessage("❌ " + data.error);
+                return;
+            }
+
+            if (data.HouseholdID) {
+                localStorage.setItem("householdId", String(data.HouseholdID));
+            }
+
+            setTransferMessage("✅ Household transferred.");
+            setTransferInviteCode("");
+            window.location.href = "/overview";
+        } catch (err) {
+            console.log(err);
+            setTransferMessage("❌ Something went wrong.");
+        } finally {
+            setIsTransferring(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        const confirmed = window.confirm(
+            "Delete your account permanently?\n\nThis will remove your account and you will leave your household. This action cannot be undone."
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsDeletingAccount(true);
+            setDeleteMessage("");
+
+            const token = localStorage.getItem("token");
+            const currentUserId = localStorage.getItem("userId");
+
+            const res = await fetch(`${API_BASE}/users/${currentUserId}`, {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                setDeleteMessage("❌ " + data.error);
+                return;
+            }
+
+            localStorage.removeItem("token");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("householdId");
+            alert("Your account has been deleted.");
+            navigate("/");
+        } catch (err) {
+            console.log(err);
+            setDeleteMessage("❌ Something went wrong.");
+        } finally {
+            setIsDeletingAccount(false);
+        }
     };
 
     return (
@@ -681,6 +785,39 @@ export default function Settings() {
                         </div>
                     )}
 
+                    <div className="card" style={{ marginBottom: "20px", borderColor: "#f0dfc7" }}>
+                        <div className="card-body">
+                            <div className="card-title" style={{ color: "#7b4f18" }}>🔄 Transfer Household</div>
+                            <p style={{ fontSize: "14px", opacity: 0.78, marginBottom: "14px", marginTop: "4px" }}>
+                                Enter another household invite code to move your account there.
+                            </p>
+                            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                                <input
+                                    className="modal-inp"
+                                    value={transferInviteCode}
+                                    onChange={(e) => setTransferInviteCode(e.target.value.toUpperCase())}
+                                    placeholder="Enter invite code"
+                                    style={{ flex: 1 }}
+                                    onKeyDown={(e) => e.key === "Enter" && handleTransferHousehold()}
+                                    maxLength={12}
+                                />
+                                <button
+                                    onClick={handleTransferHousehold}
+                                    disabled={isTransferring}
+                                    className="tb-btn"
+                                    type="button"
+                                >
+                                    {isTransferring ? "Transferring..." : "Transfer"}
+                                </button>
+                            </div>
+                            {transferMessage && (
+                                <div style={{ marginTop: "10px", fontSize: "14px", opacity: 0.9 }}>
+                                    {transferMessage}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="card" style={{ marginBottom: "20px", borderColor: "#fde8e8" }}>
                         <div className="card-body">
                             <div className="card-title" style={{ color: "#c0392b" }}>🚪 Sign Out</div>
@@ -702,6 +839,37 @@ export default function Settings() {
                             >
                                 Sign Out
                             </button>
+                        </div>
+                    </div>
+
+                    <div className="card" style={{ marginBottom: "20px", borderColor: "#f5c0c0" }}>
+                        <div className="card-body">
+                            <div className="card-title" style={{ color: "#b0302a" }}>🗑️ Delete Account</div>
+                            <p style={{ fontSize: "14px", opacity: 0.78, marginBottom: "14px", marginTop: "4px" }}>
+                                Permanently delete your account. You will also be removed from your household.
+                            </p>
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={isDeletingAccount}
+                                style={{
+                                    background: "#fff0f0",
+                                    color: "#b0302a",
+                                    border: "1.5px solid #efb1b1",
+                                    borderRadius: "8px",
+                                    padding: "8px 20px",
+                                    fontWeight: 700,
+                                    cursor: isDeletingAccount ? "not-allowed" : "pointer",
+                                    fontSize: "14px",
+                                    opacity: isDeletingAccount ? 0.7 : 1
+                                }}
+                            >
+                                {isDeletingAccount ? "Deleting..." : "Delete Account"}
+                            </button>
+                            {deleteMessage && (
+                                <div style={{ marginTop: "10px", fontSize: "14px", opacity: 0.9 }}>
+                                    {deleteMessage}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

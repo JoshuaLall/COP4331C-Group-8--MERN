@@ -231,6 +231,9 @@ module.exports = function (db) {
         {
           $set: {
             AssignedToUserID: null,
+            Status: 'open',
+            CompletedAt: null,
+            CompletedByUserID: null,
             UpdatedAt: new Date().toISOString()
           }
         }
@@ -263,6 +266,75 @@ module.exports = function (db) {
         await db.collection('Chores').deleteMany({ HouseholdID: householdId });
         await db.collection('RecurringChores').deleteMany({ HouseholdID: householdId });
       }
+
+      res.status(200).json({ error: '' });
+    } catch (e) {
+      res.status(500).json({ error: e.toString() });
+    }
+  });
+
+  // DELETE /api/users/:id
+  // incoming: UserID
+  // outgoing: error
+  router.delete('/:id', async (req, res) => {
+    try {
+      const userId = Number(req.params.id);
+
+      if (!userId) {
+        return res.status(400).json({ error: 'UserID is required' });
+      }
+
+      if (!req.user || Number(req.user.UserID) !== userId) {
+        return res.status(403).json({ error: 'Not authorized to delete this account' });
+      }
+
+      const user = await db.collection('Users').findOne({ UserID: userId });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const householdId = user.HouseholdID;
+
+      if (householdId) {
+        await db.collection('Households').updateOne(
+          { HouseholdID: householdId },
+          { $pull: { MemberIDs: userId } }
+        );
+
+        await db.collection('Chores').updateMany(
+          { AssignedToUserID: userId, HouseholdID: householdId },
+          {
+            $set: {
+              AssignedToUserID: null,
+              Status: 'open',
+              CompletedAt: null,
+              CompletedByUserID: null,
+              UpdatedAt: new Date().toISOString()
+            }
+          }
+        );
+
+        await db.collection('RecurringChores').updateMany(
+          { DefaultAssignedUserID: userId, HouseholdID: householdId },
+          {
+            $set: {
+              DefaultAssignedUserID: null,
+              UpdatedAt: new Date().toISOString()
+            }
+          }
+        );
+
+        const updatedHousehold = await db.collection('Households').findOne({ HouseholdID: householdId });
+
+        if (updatedHousehold && (!updatedHousehold.MemberIDs || updatedHousehold.MemberIDs.length === 0)) {
+          await db.collection('Households').deleteOne({ HouseholdID: householdId });
+          await db.collection('Chores').deleteMany({ HouseholdID: householdId });
+          await db.collection('RecurringChores').deleteMany({ HouseholdID: householdId });
+        }
+      }
+
+      await db.collection('Users').deleteOne({ UserID: userId });
 
       res.status(200).json({ error: '' });
     } catch (e) {

@@ -40,19 +40,35 @@ export default function LoginPage() {
             localStorage.setItem("token", data.token || "");
             localStorage.setItem("userId", String(data.UserID));
             localStorage.setItem("householdId", String(data.HouseholdID ?? ""));
-            
-            const params = new URLSearchParams(window.location.search);
-            const inviteCode = params.get("code");
 
-            if (inviteCode) {
-                await fetch(`${API_BASE}/households/join`, {
+            const params = new URLSearchParams(window.location.search);
+            const normalizedInviteCode = (params.get("code") || "").trim().toUpperCase();
+
+            if (normalizedInviteCode) {
+                const joinRes = await fetch(`${API_BASE}/households/join`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${data.token}`
+                    },
                     body: JSON.stringify({
-                        InviteCode: inviteCode,
+                        InviteCode: normalizedInviteCode,
                         UserID: data.UserID
                     })
                 });
+
+                const joinData = await joinRes.json();
+                if (!joinRes.ok || joinData.error) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("userId");
+                    localStorage.removeItem("householdId");
+                    setLoginError(joinData.error || "Could not join household with that invite code.");
+                    return;
+                }
+
+                if (joinData.HouseholdID) {
+                    localStorage.setItem("householdId", String(joinData.HouseholdID));
+                }
             }
 
             navigate("/overview");

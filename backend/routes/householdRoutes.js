@@ -202,6 +202,10 @@ module.exports = function (db) {
                 return res.status(400).json({ error: 'HouseholdID (or InviteCode) and UserID are required' });
             }
 
+            if (!req.user || Number(req.user.UserID) !== userId) {
+                return res.status(403).json({ error: 'Not authorized to transfer this user' });
+            }
+
             if (HouseholdID) {
                 household = await db.collection('Households').findOne({ HouseholdID: Number(HouseholdID) });
             } else {
@@ -220,6 +224,10 @@ module.exports = function (db) {
 
             const currentHouseholdId = user.HouseholdID;
 
+            if (currentHouseholdId && currentHouseholdId === household.HouseholdID) {
+                return res.status(400).json({ error: 'You are already in this household' });
+            }
+
             if (currentHouseholdId && currentHouseholdId !== household.HouseholdID) {
                 await db.collection('Households').updateOne(
                     { HouseholdID: currentHouseholdId },
@@ -231,6 +239,9 @@ module.exports = function (db) {
                     {
                         $set: {
                             AssignedToUserID: null,
+                            Status: 'open',
+                            CompletedAt: null,
+                            CompletedByUserID: null,
                             UpdatedAt: new Date().toISOString()
                         }
                     }
