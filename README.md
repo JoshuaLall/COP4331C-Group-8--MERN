@@ -8,6 +8,7 @@ OurPlace is a household chore management system with:
 
 It is designed so households can create, assign, complete, and track chores, including recurring chores.
 
+Link to the site: https://cop4331c.com/ 
 ## What This Project Is
 
 This repository contains a multi-client full-stack application:

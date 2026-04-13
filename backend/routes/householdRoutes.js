@@ -3,28 +3,30 @@ import { Resend } from 'resend';
 
 const router = express.Router();
 
-const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
-    : null;
-const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
-const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+export default function (db, authenticateToken) {
+    const resend = process.env.RESEND_API_KEY
+        ? new Resend(process.env.RESEND_API_KEY)
+        : null;
+    const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
+    const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
 
-async function sendEmailOrLog({ to, subject, html, fallbackLink }) {
-    if (!resend) {
-        console.log(`Household invite email skipped for ${to}; RESEND_API_KEY is not configured.`);
-        console.log(`Household invite link: ${fallbackLink}`);
-        return;
+    async function sendEmailOrLog({ to, subject, html, fallbackLink }) {
+        if (!resend) {
+            console.log(`Household invite email skipped for ${to}; RESEND_API_KEY is not configured.`);
+            console.log(`Household invite link: ${fallbackLink}`);
+            return false;
+        }
+
+        await resend.emails.send({
+            from: EMAIL_FROM,
+            to,
+            subject,
+            html
+        });
+
+        return true;
     }
 
-    await resend.emails.send({
-        from: EMAIL_FROM,
-        to,
-        subject,
-        html
-    });
-}
-
-export default function (db, authenticateToken) {
 
     const INVITE_CODE_LENGTH = 6;
     const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
