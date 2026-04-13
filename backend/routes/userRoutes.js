@@ -16,7 +16,7 @@ export default function (db, authenticateToken) {
     if (!resend) {
       console.log(`Email change verification skipped for ${to}; RESEND_API_KEY is not configured.`);
       console.log(`Email change verification link: ${fallbackLink}`);
-      return;
+      return false;
     }
 
     await resend.emails.send({
@@ -25,6 +25,8 @@ export default function (db, authenticateToken) {
       subject,
       html
     });
+
+    return true;
   }
 
   // GET /api/users/household/:householdId
@@ -165,7 +167,7 @@ export default function (db, authenticateToken) {
 
           const verifyLink = `${FRONTEND_BASE_URL}/verify-email-change?token=${verifyToken}`;
 
-          await sendEmailOrLog({
+          const didSend = await sendEmailOrLog({
             to: normalizedEmail,
             subject: 'Verify your new email',
             fallbackLink: verifyLink,
@@ -183,6 +185,10 @@ export default function (db, authenticateToken) {
               ">Verify Email</a>
             `
           });
+
+          if (didSend) {
+            console.log(`Email change verification sent to ${normalizedEmail}`);
+          }
         }
       }
 
