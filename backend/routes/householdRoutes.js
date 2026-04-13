@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { Resend } from 'resend';
+
 const router = express.Router();
-const { Resend } = require('resend');
 
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
@@ -23,7 +24,7 @@ async function sendEmailOrLog({ to, subject, html, fallbackLink }) {
     });
 }
 
-module.exports = function (db) {
+export default function (db, authenticateToken) {
 
     const INVITE_CODE_LENGTH = 6;
     const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

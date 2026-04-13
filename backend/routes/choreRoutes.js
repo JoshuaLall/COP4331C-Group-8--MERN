@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+
 const router = express.Router();
 
-module.exports = function (db) {
+export default function (db, authenticateToken) {
 
   // POST /api/chores
   // incoming: HouseholdID, Title, Description, DueDate, *Priority, CreatedByUserID

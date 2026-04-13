@@ -2,8 +2,11 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_ENV=test jest",
+    "test:watch": "NODE_ENV=test jest --watch",
+    "test:coverage": "NODE_ENV=test jest --coverage",
     "dev": "nodemon ./server.js"
   },
   "keywords": [],
@@ -22,6 +25,12 @@
     "resend": "^6.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@babel/preset-env": "^7.29.2",
+    "@jest/globals": "^30.3.0",
+    "babel-jest": "^30.3.0",
+    "jest": "^30.3.0",
+    "mongodb-memory-server": "^11.0.1",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }

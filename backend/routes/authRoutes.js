@@ -1,8 +1,9 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { Resend } from 'resend';
+
 const router = express.Router();
-const { Resend } = require('resend');
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 const resend = process.env.RESEND_API_KEY
@@ -40,7 +41,7 @@ function validatePassword(password) {
   return '';
 }
 
-module.exports = function (db, authenticateToken) {
+export default function (db, authenticateToken) {
 
   // REGISTER
   router.post('/register', async (req, res) => {

@@ -57,6 +57,9 @@ export default function Settings() {
     const [transferInviteCode, setTransferInviteCode] = useState("");
     const [transferMessage, setTransferMessage] = useState("");
     const [isTransferring, setIsTransferring] = useState(false);
+    const [newHouseholdName, setNewHouseholdName] = useState("");
+    const [createHouseholdMessage, setCreateHouseholdMessage] = useState("");
+    const [isCreatingHousehold, setIsCreatingHousehold] = useState(false);
 
     const passwordChecks = getPasswordChecks(newPassword);
 
@@ -367,6 +370,47 @@ export default function Settings() {
         navigate("/");
     };
 
+    const handleCreateHousehold = async () => {
+        if (!newHouseholdName.trim()) {
+            setCreateHouseholdMessage("❌ Please enter a household name");
+            return;
+        }
+
+        setIsCreatingHousehold(true);
+        setCreateHouseholdMessage("");
+
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/households`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    HouseholdName: newHouseholdName,
+                    UserID: userId
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                setCreateHouseholdMessage(`❌ ${data.error}`);
+            } else {
+                localStorage.setItem("householdId", String(data.HouseholdID));
+                setCreateHouseholdMessage(`✅ Household "${newHouseholdName}" created!`);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
+        } catch (error) {
+            setCreateHouseholdMessage("❌ Failed to create household");
+        } finally {
+            setIsCreatingHousehold(false);
+        }
+    };
+
     const handleTransferHousehold = async () => {
         setTransferMessage("");
 
@@ -572,6 +616,44 @@ export default function Settings() {
                         </div>
                     </div>
 
+                    {/* CREATE HOUSEHOLD SECTION - Only show when user is NOT in a household */}
+                    {!householdId && (
+                        <div className="card" style={{ marginBottom: "20px", borderColor: "#d4edda" }}>
+                            <div className="card-body">
+                                <div className="card-title" style={{ color: "#155724" }}>🏠 Create a Household</div>
+                                <p style={{ fontSize: "14px", opacity: 0.78, marginBottom: "14px", marginTop: "4px" }}>
+                                    You're not in a household yet. Create one to start managing chores with others.
+                                </p>
+                                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                                    <input
+                                        className="modal-inp"
+                                        value={newHouseholdName}
+                                        onChange={(e) => setNewHouseholdName(e.target.value)}
+                                        placeholder="Enter household name"
+                                        style={{ flex: 1 }}
+                                        onKeyDown={(e) => e.key === "Enter" && handleCreateHousehold()}
+                                    />
+                                    <button
+                                        onClick={handleCreateHousehold}
+                                        disabled={isCreatingHousehold}
+                                        className="tb-btn"
+                                        type="button"
+                                    >
+                                        {isCreatingHousehold ? "Creating..." : "Create"}
+                                    </button>
+                                </div>
+                                {createHouseholdMessage && (
+                                    <div style={{ marginTop: "10px", fontSize: "14px", opacity: 0.9 }}>
+                                        {createHouseholdMessage}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HOUSEHOLD SECTIONS - Only show when user IS in a household */}
+                    {householdId && (
+                        <>
                     <div className="card" style={{ marginBottom: "20px" }}>
                         <div className="card-body">
                             <div className="card-title">🏠 Household Name</div>
@@ -816,6 +898,8 @@ export default function Settings() {
                             )}
                         </div>
                     </div>
+                        </>
+                    )}
 
                     <div className="card" style={{ marginBottom: "20px", borderColor: "#fde8e8" }}>
                         <div className="card-body">

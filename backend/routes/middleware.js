@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
-module.exports = function authenticateToken(req, res, next) {
+export default function (db, authenticateToken) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
 

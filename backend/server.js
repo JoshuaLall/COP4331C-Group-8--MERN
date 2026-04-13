@@ -1,10 +1,17 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const express = require('express');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
+import { MongoClient } from 'mongodb';
 
-const { MongoClient } = require('mongodb');
-const authenticateToken = require('./routes/authenticateToken');
+// Import routes and middleware at the top (STATIC imports)
+import authenticateToken from './routes/authenticateToken.js';
+import authRoutesModule from './routes/authRoutes.js';
+import userRoutesModule from './routes/userRoutes.js';
+import householdRoutesModule from './routes/householdRoutes.js';
+import choreRoutesModule from './routes/choreRoutes.js';
+import recurringChoreRoutesModule from './routes/recurringChoreRoutes.js';
 
 const app = express();
 app.use(cors());
@@ -14,7 +21,7 @@ const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryW
 const client = new MongoClient(url);
 let db;
 
-// Routes registered FIRST, outside async function
+// Simple routes
 app.get('/api/ping', (req, res) => {
   res.status(200).json({ message: 'Hello World' });
 });
@@ -47,27 +54,35 @@ async function startServer() {
     db = client.db('ChoreApp');
     console.log('MongoDB connected');
 
-    //-- API Route Imports
-    const authRoutes = require('./routes/authRoutes')(db, authenticateToken);
-    const userRoutes = require('./routes/userRoutes')(db);
-    const householdRoutes = require('./routes/householdRoutes')(db);
-    const choreRoutes = require('./routes/choreRoutes')(db);
-    console.log("Chore routes loaded");
-    const recurringChoreRoutes = require('./routes/recurringChoreRoutes')(db);
+    // Call route functions (NO dynamic imports here)
+    const authRoutes = authRoutesModule(db, authenticateToken);
+    const userRoutes = userRoutesModule(db);
+    const householdRoutes = householdRoutesModule(db);
+    const choreRoutes = choreRoutesModule(db);
+    const recurringChoreRoutes = recurringChoreRoutesModule(db);
 
-    //-- API Routes
+    // Register API Routes
     app.use('/api/auth', authRoutes);
     app.use('/api/users', authenticateToken, userRoutes);
     app.use('/api/households', authenticateToken, householdRoutes);
     app.use('/api/chores', authenticateToken, choreRoutes);
     app.use('/api/recurring-chores', authenticateToken, recurringChoreRoutes);
 
-    app.listen(5000, () => {
-      console.log('Server running on port 5000');
-    });
+    // Only start server if not in test mode
+    if (process.env.NODE_ENV !== 'test') {
+      app.listen(5000, () => {
+        console.log('Server running on port 5000');
+      });
+    }
   } catch (err) {
     console.error('Startup error:', err);
   }
 }
 
-startServer();
+// Only auto-call startServer if NOT in test mode
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export default app;
+export { startServer, db };

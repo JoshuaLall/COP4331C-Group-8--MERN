@@ -19,6 +19,7 @@ export default function Recurring() {
     const [isEdit, setIsEdit] = useState(false);
     const [selectedChore, setSelectedChore] = useState<any>(null);
     const [isRecurring, setIsRecurring] = useState(true); // always true on this page
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const [form, setForm] = useState({
         Title: "",
@@ -231,6 +232,36 @@ export default function Recurring() {
             fetchRecurring();
         } catch (e) {
             console.log("Submit failed:", e);
+        }
+    };
+
+    // Delete recurring chore
+    const handleDelete = async () => {
+        if (!selectedChore) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(
+                `${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            const data = await res.json();
+            if (data.error === "" || !data.error) {
+                markChoresUpdated();
+                resetModal();
+                fetchRecurring();
+            } else {
+                alert(`Failed to delete: ${data.error}`);
+            }
+        } catch (e) {
+            console.log("Delete failed:", e);
+            alert("Failed to delete recurring chore");
         }
     };
 
@@ -535,12 +566,58 @@ export default function Recurring() {
                         </div>
 
                         <div className="modal-footer">
+                            {isEdit && (
+                                <button
+                                    className="modal-cancel"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    style={{
+                                        background: "#fff0f0",
+                                        color: "#c0392b",
+                                        border: "1.5px solid #f5c0c0",
+                                        marginRight: "auto"
+                                    }}
+                                >
+                                    🗑️ Delete
+                                </button>
+                            )}
                             <button className="modal-cancel" onClick={resetModal}>Cancel</button>
                             <button className="modal-submit" onClick={handleSubmit}>
                                 {isEdit ? "💾 Save Changes" : "🏡 Publish Chore"}
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+                        <div className="modal-header">
+                            <div className="modal-title">🗑️ Delete Recurring Chore?</div>
+                            <button className="modal-close" onClick={() => setShowDeleteConfirm(false)}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ marginTop: 0 }}>
+                                Are you sure you want to delete <strong>{selectedChore?.Title}</strong>?
+                            </p>
+                            <p style={{ fontSize: "14px", opacity: 0.7 }}>
+                                This will remove the recurring template. Existing chore instances will remain but won't generate new ones.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="modal-cancel" onClick={() => setShowDeleteConfirm(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="modal-submit"
+                                onClick={handleDelete}
+                                style={{ background: "#c0392b", borderColor: "#c0392b" }}
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

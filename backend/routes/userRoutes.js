@@ -1,9 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const jwt = require('jsonwebtoken');
-const { Resend } = require('resend');
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import { Resend } from 'resend';
 
-module.exports = function (db) {
+const router = express.Router();
+
+export default function (db, authenticateToken) {
   const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
   const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)

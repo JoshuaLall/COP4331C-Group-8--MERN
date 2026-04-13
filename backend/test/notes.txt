@@ -1,0 +1,7 @@
+
+
+Commands:
+npm test: Run all tests once
+npm run test:watch: Re-run tests when files change
+npm run test:coverage: Show code coverage report
+
