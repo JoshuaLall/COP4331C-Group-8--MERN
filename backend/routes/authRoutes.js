@@ -5,28 +5,6 @@ import { Resend } from 'resend';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
-const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
-const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
-
-async function sendEmailOrLog({ to, subject, html, fallbackLabel, fallbackLink }) {
-  if (!resend) {
-    console.log(`${fallbackLabel} skipped for ${to}; RESEND_API_KEY is not configured.`);
-    console.log(`${fallbackLabel} link: ${fallbackLink}`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: EMAIL_FROM,
-    to,
-    subject,
-    html
-  });
-}
-
 function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
     return 'Password is required';
@@ -42,6 +20,30 @@ function validatePassword(password) {
 }
 
 export default function (db, authenticateToken) {
+  const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+  const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+  const EMAIL_FROM = process.env.EMAIL_FROM || 'OurPlace <noreply@cop4331c.com>';
+  const FRONTEND_BASE_URL = (process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+  async function sendEmailOrLog({ to, subject, html, fallbackLabel, fallbackLink }) {
+    if (!resend) {
+      console.log(`${fallbackLabel} skipped for ${to}; RESEND_API_KEY is not configured.`);
+      console.log(`${fallbackLabel} link: ${fallbackLink}`);
+      return false;
+    }
+
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to,
+      subject,
+      html
+    });
+
+    return true;
+  }
+
 
   // REGISTER
   router.post('/register', async (req, res) => {
@@ -141,7 +143,7 @@ export default function (db, authenticateToken) {
       const verifyLink = `${FRONTEND_BASE_URL}/verify-email?token=${verifyToken}`;
 
       try {
-        await sendEmailOrLog({
+        const didSend = await sendEmailOrLog({
           to: normalizedEmail,
           subject: 'Verify your OurPlace account',
           fallbackLabel: 'Verification email',
@@ -157,7 +159,9 @@ export default function (db, authenticateToken) {
             <p>If you didn't create an account, please ignore this email.</p>
           `
         });
-        console.log(`✓ Verification email sent to ${normalizedEmail}`);
+        if (didSend) {
+          console.log(`Verification email sent to ${normalizedEmail}`);
+        }
       } catch (e) {
         console.error("EMAIL FAILED:", e);
       }
@@ -371,7 +375,7 @@ export default function (db, authenticateToken) {
       const resetLink = `${FRONTEND_BASE_URL}/reset-password?token=${resetToken}`;
 
       try {
-        await sendEmailOrLog({
+        const didSend = await sendEmailOrLog({
           to: user.Email,
           subject: 'Reset Your OurPlace Password',
           fallbackLabel: 'Password reset email',
@@ -387,7 +391,9 @@ export default function (db, authenticateToken) {
             <p>If you didn't request a password reset, please ignore this email.</p>
           `
         });
-        console.log(`✓ Password reset email sent to ${user.Email}`);
+        if (didSend) {
+          console.log(`Password reset email sent to ${user.Email}`);
+        }
       } catch (err) {
         console.error("RESET EMAIL FAILED:", err);
       }
