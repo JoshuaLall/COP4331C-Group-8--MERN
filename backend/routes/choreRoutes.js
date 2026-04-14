@@ -7,7 +7,7 @@ export default function (db, authenticateToken) {
   // POST /api/chores
   // incoming: HouseholdID, Title, Description, DueDate, *Priority, CreatedByUserID
   // outgoing: ChoreID, error
-  router.post('/', async (req, res) => {
+  router.post('/', authenticateToken, async (req, res) => {
     try {
       const {
         HouseholdID,
@@ -21,6 +21,11 @@ export default function (db, authenticateToken) {
 
       if (!HouseholdID || !Title || !Priority || !CreatedByUserID) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // AUTHORIZATION CHECK
+      if (Number(HouseholdID) !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only create chores in your own household.' });
       }
 
       const lastChore = await db
@@ -63,12 +68,20 @@ export default function (db, authenticateToken) {
   // GET /api/chores
   // incoming: HouseholdID
   // outgoing: results[], error
-  router.get('/', async (req, res) => {
+  router.get('/', authenticateToken, async (req, res) => {
     try {
       const householdId = parseInt(req.query.HouseholdID);
 
       if (!householdId) {
         return res.status(400).json({ error: 'HouseholdID is required', results: [] });
+      }
+
+      // AUTHORIZATION CHECK
+      if (householdId !== req.user.HouseholdID) {
+        return res.status(403).json({ 
+          error: 'Forbidden. You can only access chores from your own household.', 
+          results: [] 
+        });
       }
 
       const results = await db.collection('Chores').find({
@@ -85,11 +98,19 @@ export default function (db, authenticateToken) {
   // incoming: HouseholdID
   // outgoing: results[], error
   // returns chores that are NOT assigned yet
-  router.get('/open', async (req, res) => {
+  router.get('/open', authenticateToken, async (req, res) => {
     const householdId = parseInt(req.query.HouseholdID);
 
     if (!householdId) {
       return res.status(400).json({ error: 'HouseholdID is required' });
+    }
+
+    // AUTHORIZATION CHECK
+    if (householdId !== req.user.HouseholdID) {
+      return res.status(403).json({ 
+        error: 'Forbidden. You can only access chores from your own household.', 
+        results: [] 
+      });
     }
 
     try {
@@ -108,11 +129,19 @@ export default function (db, authenticateToken) {
   // GET /api/chores/assigned
   // incoming: HouseholdID
   // outgoing: results[], error
-  router.get('/assigned', async (req, res) => {
+  router.get('/assigned', authenticateToken, async (req, res) => {
     const householdId = parseInt(req.query.HouseholdID);
 
     if (!householdId) {
       return res.status(400).json({ error: 'HouseholdID is required' });
+    }
+
+    // AUTHORIZATION CHECK
+    if (householdId !== req.user.HouseholdID) {
+      return res.status(403).json({ 
+        error: 'Forbidden. You can only access chores from your own household.', 
+        results: [] 
+      });
     }
 
     try {
@@ -131,7 +160,7 @@ export default function (db, authenticateToken) {
   // incoming: UserID
   // outgoing: results[], error
 
-  router.get('/my', async (req, res) => {
+  router.get('/my', authenticateToken, async (req, res) => {
     const userId = parseInt(req.query.UserID);
     const householdId = parseInt(req.query.HouseholdID);
 
@@ -141,6 +170,14 @@ export default function (db, authenticateToken) {
 
     if (!householdId) {
       return res.status(400).json({ error: "HouseholdID is required" });
+    }
+
+    // AUTHORIZATION CHECK
+    if (householdId !== req.user.HouseholdID) {
+      return res.status(403).json({ 
+        error: 'Forbidden. You can only access chores from your own household.', 
+        results: [] 
+      });
     }
 
     try {
@@ -160,7 +197,7 @@ export default function (db, authenticateToken) {
   // incoming: HouseholdID
   // outgoing: results[], error
   // Purpose: return chores completed by the logged-in user
-  router.get('/completed', async (req, res) => {
+  router.get('/completed', authenticateToken, async (req, res) => {
     const userId = parseInt(req.query.UserID);
     const householdId = parseInt(req.query.HouseholdID);
 
@@ -170,6 +207,14 @@ export default function (db, authenticateToken) {
 
     if (!householdId) {
       return res.status(400).json({ error: "HouseholdID is required" });
+    }
+
+    // AUTHORIZATION CHECK
+    if (householdId !== req.user.HouseholdID) {
+      return res.status(403).json({ 
+        error: 'Forbidden. You can only access chores from your own household.', 
+        results: [] 
+      });
     }
 
     try {
@@ -191,7 +236,7 @@ export default function (db, authenticateToken) {
   // GET /api/chores/:id
   // incoming: ChoreID
   // outgoing: chore object, error
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', authenticateToken, async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
 
@@ -205,6 +250,11 @@ export default function (db, authenticateToken) {
         return res.status(404).json({ error: 'Chore not found' });
       }
 
+      // AUTHORIZATION CHECK
+      if (chore.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only access chores from your own household.' });
+      }
+
       res.status(200).json({ error: '', chore });
 
     } catch (e) {
@@ -215,10 +265,10 @@ export default function (db, authenticateToken) {
   // PUT /api/chores/:id
   // incoming: Title, Description, DueDate, *Priority
   // outgoing: error
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', authenticateToken, async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
-      const { Title, Description, DueDate, Priority, AssignedToUserID } = req.body; //Added AssignedToUserID
+      const { Title, Description, DueDate, Priority, AssignedToUserID } = req.body;
 
       if (!ChoreID) {
         return res.status(400).json({ error: 'ChoreID is required' });
@@ -229,6 +279,11 @@ export default function (db, authenticateToken) {
         return res.status(404).json({ error: 'Chore not found' });
       }
 
+      // AUTHORIZATION CHECK
+      if (existingChore.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only update chores from your own household.' });
+      }
+
       const updateFields = {
         UpdatedAt: new Date().toISOString()
       };
@@ -237,7 +292,6 @@ export default function (db, authenticateToken) {
       if (Description) updateFields.Description = Description;
       if (DueDate !== undefined) updateFields.DueDate = DueDate;
       if (Priority) updateFields.Priority = Priority.toLowerCase();
-      //Added the following two lines to allow changined the chore from one assigned user to another or to unassign a chore.
       if (AssignedToUserID !== undefined) updateFields.AssignedToUserID = AssignedToUserID ? Number(AssignedToUserID) : null;
       if (AssignedToUserID !== undefined) updateFields.Status = AssignedToUserID ? "assigned" : "open";
 
@@ -291,22 +345,26 @@ export default function (db, authenticateToken) {
   // incoming: AssignedToUserID
   // outgoing: error
   // Purpose: assign an open chore to a specific user
-  router.patch('/:id/claim', async (req, res) => {
+  router.patch('/:id/claim', authenticateToken, async (req, res) => {
     try {
-      // get chore id from the URL
-      // example: /api/chores/1/claim
       const ChoreID = parseInt(req.params.id);
-
-      // get the user claiming the chore from the request body
       const { AssignedToUserID } = req.body;
 
-      // make sure a user id was provided
       if (!AssignedToUserID) {
         return res.status(400).json({ error: 'AssignedToUserID is required' });
       }
 
-      // update the chore in MongoDB
-      // set the assigned user and change status to assigned
+      const chore = await db.collection('Chores').findOne({ ChoreID });
+      
+      if (!chore) {
+        return res.status(404).json({ error: 'Chore not found' });
+      }
+
+      // AUTHORIZATION CHECK
+      if (chore.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only claim chores from your own household.' });
+      }
+
       const result = await db.collection('Chores').updateOne(
         { ChoreID: ChoreID },
         {
@@ -318,12 +376,6 @@ export default function (db, authenticateToken) {
         }
       );
 
-      // if no chore matched that id, send not found
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: 'Chore not found' });
-      }
-
-      // success
       res.status(200).json({ error: '' });
 
     } catch (e) {
@@ -335,7 +387,7 @@ export default function (db, authenticateToken) {
   // incoming: CompletedByUserID
   // outgoing: error
   // Purpose: mark a chore as completed
-  router.patch('/:id/complete', async (req, res) => {
+  router.patch('/:id/complete', authenticateToken, async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
       const { CompletedByUserID } = req.body;
@@ -346,7 +398,11 @@ export default function (db, authenticateToken) {
         return res.status(404).json({ error: 'Chore not found' });
       }
 
-      // validate input
+      // AUTHORIZATION CHECK
+      if (chore.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only complete chores from your own household.' });
+      }
+
       if (!CompletedByUserID) {
         return res.status(400).json({ error: 'CompletedByUserID is required' });
       }
@@ -370,8 +426,6 @@ export default function (db, authenticateToken) {
         return next;
       };
 
-      // For recurring chores, create the next instance first so completion cannot
-      // accidentally remove the only active occurrence.
       if (chore && chore.IsRecurring && chore.RecurringTemplateID) {
         const template = await db.collection('RecurringChores').findOne({
           RecurringTemplateID: chore.RecurringTemplateID
@@ -441,7 +495,6 @@ export default function (db, authenticateToken) {
         }
       }
 
-      // update chore
       const result = await db.collection('Chores').updateOne(
         { ChoreID },
         {
@@ -470,7 +523,7 @@ export default function (db, authenticateToken) {
   // DELETE /api/chores/:id
   // incoming: ChoreID
   // outgoing: error
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', authenticateToken, async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
 
@@ -478,20 +531,24 @@ export default function (db, authenticateToken) {
         return res.status(400).json({ error: 'ChoreID is required' });
       }
 
-      const result = await db.collection('Chores').deleteOne({ ChoreID });
+      const chore = await db.collection('Chores').findOne({ ChoreID });
 
-      if (result.deletedCount === 0) {
+      if (!chore) {
         return res.status(404).json({ error: 'Chore not found' });
       }
+
+      // AUTHORIZATION CHECK
+      if (chore.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only delete chores from your own household.' });
+      }
+
+      const result = await db.collection('Chores').deleteOne({ ChoreID });
 
       res.status(200).json({ error: '' });
     } catch (e) {
       res.status(500).json({ error: e.toString() });
     }
   });
-
-
-  // *NOTE: Priority should be set here
 
   return router;
 };
