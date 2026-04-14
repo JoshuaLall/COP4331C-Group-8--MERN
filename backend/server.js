@@ -5,8 +5,7 @@ import cors from 'cors';
 import { MongoClient } from 'mongodb';
 
 // Import the middleware creator function
-import createAuthMiddleware from './middleware/authenticateToken.js';
-
+import createAuthMiddleware from './routes/middleware.js';
 // Import routes
 import authRoutesModule from './routes/authRoutes.js';
 import userRoutesModule from './routes/userRoutes.js';
