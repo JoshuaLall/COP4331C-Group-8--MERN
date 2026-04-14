@@ -1,12 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
-
 import express from 'express';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
 
-// Import routes and middleware at the top (STATIC imports)
-import authenticateToken from './routes/authenticateToken.js';
+// Import the middleware creator function
+import createAuthMiddleware from './middleware/authenticateToken.js';
+
+// Import routes
 import authRoutesModule from './routes/authRoutes.js';
 import userRoutesModule from './routes/userRoutes.js';
 import householdRoutesModule from './routes/householdRoutes.js';
@@ -54,19 +55,22 @@ async function startServer() {
     db = client.db('ChoreApp');
     console.log('MongoDB connected');
 
-    // Call route functions (NO dynamic imports here)
+    // NOW create authenticateToken with db
+    const authenticateToken = createAuthMiddleware(db);
+
+    // Call route functions
     const authRoutes = authRoutesModule(db, authenticateToken);
-    const userRoutes = userRoutesModule(db);
-    const householdRoutes = householdRoutesModule(db);
-    const choreRoutes = choreRoutesModule(db);
-    const recurringChoreRoutes = recurringChoreRoutesModule(db);
+    const userRoutes = userRoutesModule(db, authenticateToken);
+    const householdRoutes = householdRoutesModule(db, authenticateToken);
+    const choreRoutes = choreRoutesModule(db, authenticateToken);
+    const recurringChoreRoutes = recurringChoreRoutesModule(db, authenticateToken);
 
     // Register API Routes
     app.use('/api/auth', authRoutes);
-    app.use('/api/users', authenticateToken, userRoutes);
-    app.use('/api/households', authenticateToken, householdRoutes);
-    app.use('/api/chores', authenticateToken, choreRoutes);
-    app.use('/api/recurring-chores', authenticateToken, recurringChoreRoutes);
+    app.use('/api/users', userRoutes);
+    app.use('/api/households', householdRoutes);
+    app.use('/api/chores', choreRoutes);
+    app.use('/api/recurring-chores', recurringChoreRoutes);
 
     // Only start server if not in test mode
     if (process.env.NODE_ENV !== 'test') {
