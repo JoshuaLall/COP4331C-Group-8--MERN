@@ -448,6 +448,13 @@ export default function Recurring() {
                                         </span>
 
                                         <button
+                                            className="done-btn"
+                                            onClick={() => handleComplete(chore)}
+                                        >
+                                            Mark as Complete
+                                        </button>
+
+                                        <button
                                             className="claim-btn"
                                             onClick={() => handleOpenEdit(chore)}
                                         >
@@ -464,13 +471,6 @@ export default function Recurring() {
                                             }}
                                         >
                                             Delete
-                                        </button>
-
-                                        <button
-                                            className="done-btn"
-                                            onClick={() => handleComplete(chore)}
-                                        >
-                                            Mark as Complete
                                         </button>
                                     </div>
                                 </div>
