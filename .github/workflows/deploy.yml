@@ -103,7 +103,7 @@ jobs:
             cd backend
             npm install --production
             echo "🔄 Restarting backend..."
-            pm2 restart server1
+            pm2 restart server
             echo "✅ Backend deployment complete!"
           ENDSSH
       
