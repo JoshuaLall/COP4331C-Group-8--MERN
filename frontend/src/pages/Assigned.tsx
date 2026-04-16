@@ -19,6 +19,7 @@ export default function Assigned() {
     const [showModal, setShowModal] = useState(false);
     const [isEdit, setIsEdit] = useState(false);
     const [selectedChore, setSelectedChore] = useState<any>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isRecurring, setIsRecurring] = useState(false);
 
     const [form, setForm] = useState({
@@ -167,6 +168,7 @@ export default function Assigned() {
         setShowModal(false);
         setIsEdit(false);
         setSelectedChore(null);
+        setShowDeleteConfirm(false);
         setIsRecurring(false);
         setForm({
             Title: "",
@@ -186,6 +188,7 @@ export default function Assigned() {
     const handleOpenEdit = (chore: any) => {
         setIsEdit(true);
         setSelectedChore(chore);
+        setShowDeleteConfirm(false);
         setIsRecurring(chore.IsRecurring || false);
         setForm({
             Title: chore.Title || "",
@@ -261,6 +264,32 @@ export default function Assigned() {
             fetchAssigned();
         } catch (e) {
             console.log("Submit failed:", e);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedChore) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = await res.json();
+            if (data.error === "" || !data.error) {
+                markChoresUpdated();
+                resetModal();
+                fetchAssigned();
+            } else {
+                alert(`Failed to delete: ${data.error}`);
+            }
+        } catch (e) {
+            console.log("Delete failed:", e);
+            alert("Failed to delete chore");
         }
     };
 
@@ -541,6 +570,20 @@ export default function Assigned() {
                         </div>
 
                         <div className="modal-footer">
+                            {isEdit && selectedChore && (
+                                <button
+                                    className="modal-cancel"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    style={{
+                                        background: "#fff0f0",
+                                        color: "#c0392b",
+                                        border: "1.5px solid #f5c0c0",
+                                        marginRight: "auto"
+                                    }}
+                                >
+                                    🗑️ Delete
+                                </button>
+                            )}
                             <button className="modal-cancel" onClick={resetModal}>
                                 Cancel
                             </button>
@@ -549,6 +592,37 @@ export default function Assigned() {
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {showDeleteConfirm && selectedChore && (
+                <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+                        <div className="modal-header">
+                            <div className="modal-title">🗑️ Delete Chore?</div>
+                            <button className="modal-close" onClick={() => setShowDeleteConfirm(false)}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ marginTop: 0 }}>
+                                Are you sure you want to delete <strong>{selectedChore.Title}</strong>?
+                            </p>
+                            <p style={{ fontSize: "14px", opacity: 0.7 }}>
+                                This will remove the chore from your household.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="modal-cancel" onClick={() => setShowDeleteConfirm(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="modal-submit"
+                                onClick={handleDelete}
+                                style={{ background: "#c0392b", borderColor: "#c0392b" }}
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

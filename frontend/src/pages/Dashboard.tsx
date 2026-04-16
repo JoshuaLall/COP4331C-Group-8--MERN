@@ -16,6 +16,8 @@ export default function Dashboard() {
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [selectedChore, setSelectedChore] = useState<any>(null);
     const [isRecurring, setIsRecurring] = useState(false);
     const [form, setForm] = useState({
         Title: "",
@@ -124,6 +126,8 @@ export default function Dashboard() {
 
     const resetModal = () => {
         setShowModal(false);
+        setShowDeleteConfirm(false);
+        setSelectedChore(null);
         setIsRecurring(false);
         setForm({
             Title: "",
@@ -195,6 +199,33 @@ export default function Dashboard() {
             }
         } catch (e) {
             console.log("Error creating chore:", e);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedChore) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = await res.json();
+            if (data.error === "" || !data.error) {
+                setOpenChores((prev) => prev.filter((chore) => chore.ChoreID !== selectedChore.ChoreID));
+                markChoresUpdated();
+                resetModal();
+                fetchOpenChores();
+            } else {
+                alert(`Failed to delete: ${data.error}`);
+            }
+        } catch (e) {
+            console.log("Delete failed:", e);
+            alert("Failed to delete chore");
         }
     };
 
@@ -316,6 +347,16 @@ export default function Dashboard() {
                                             onClick={() => handleClaim(chore.ChoreID)}
                                         >
                                             Claim
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="done-btn"
+                                            onClick={() => {
+                                                setSelectedChore(chore);
+                                                setShowDeleteConfirm(true);
+                                            }}
+                                        >
+                                            Delete
                                         </button>
                                     </div>
                                 </div>
@@ -440,6 +481,38 @@ export default function Dashboard() {
                             </button>
                             <button type="button" className="modal-submit" onClick={handleSubmitChore}>
                                 🏡 Publish Chore
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteConfirm && selectedChore && (
+                <div className="modal-overlay" onClick={resetModal}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+                        <div className="modal-header">
+                            <div className="modal-title">🗑️ Delete Open Chore?</div>
+                            <button type="button" className="modal-close" onClick={resetModal}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ marginTop: 0 }}>
+                                Are you sure you want to delete <strong>{selectedChore.Title}</strong>?
+                            </p>
+                            <p style={{ fontSize: "14px", opacity: 0.7 }}>
+                                This will remove the chore from your household.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="modal-cancel" onClick={resetModal}>
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="modal-submit"
+                                onClick={handleDelete}
+                                style={{ background: "#c0392b", borderColor: "#c0392b" }}
+                            >
+                                Delete
                             </button>
                         </div>
                     </div>
