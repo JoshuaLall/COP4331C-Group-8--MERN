@@ -2,7 +2,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
 let app;
-let db;
+let getDb;
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
@@ -72,14 +72,13 @@ function createRecurringChore(overrides = {}) {
 }
 
 beforeAll(async () => {
-  process.env.NODE_ENV = 'test';
   const appModule = await import('../server.js');
   app = appModule.default;
-  await appModule.startServer();
-  db = appModule.db;
+  getDb = appModule.getDb;
 });
 
 beforeEach(async () => {
+  const db = getDb();
   await db.collection('Users').deleteMany({});
   await db.collection('Households').deleteMany({});
   await db.collection('Chores').deleteMany({});
@@ -95,6 +94,7 @@ describe('Chore Routes Integration Tests', () => {
   describe('POST /api/chores', () => {
     
     it('should create a new chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('Households').insertOne(createHousehold());
@@ -122,31 +122,35 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should create assigned chore when AssignedToUserID provided', async () => {
-        const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
-        
-        await db.collection('Households').insertOne(createHousehold());
-        await db.collection('Users').insertOne(createUser());
-        
-        const response = await request(app)
-            .post('/api/chores')
-            .set('Authorization', `Bearer ${token}`)
-            .send({
-            HouseholdID: 1,
-            Title: 'Vacuum',
-            Description: 'Vacuum all rooms',  // Add this line
-            Priority: 'medium',
-            CreatedByUserID: 1,
-            AssignedToUserID: 1
-            })
-            .expect(200);
-        
-        const chore = await db.collection('Chores').findOne({ ChoreID: 1 });
-        expect(chore.Status).toBe('assigned');
-        expect(chore.AssignedToUserID).toBe(1);
-        });
+      const db = getDb();
+      const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Households').insertOne(createHousehold());
+      await db.collection('Users').insertOne(createUser());
+      
+      const response = await request(app)
+        .post('/api/chores')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          HouseholdID: 1,
+          Title: 'Vacuum',
+          Description: 'Vacuum all rooms',
+          Priority: 'medium',
+          CreatedByUserID: 1,
+          AssignedToUserID: 1
+        })
+        .expect(200);
+      
+      const chore = await db.collection('Chores').findOne({ ChoreID: 1 });
+      expect(chore.Status).toBe('assigned');
+      expect(chore.AssignedToUserID).toBe(1);
+    });
     
     it('should reject missing required fields', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .post('/api/chores')
@@ -163,8 +167,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores', () => {
     
     it('should get all chores for household', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertMany([
         createChore({ ChoreID: 1, HouseholdID: 1, Title: 'Chore 1' }),
         createChore({ ChoreID: 2, HouseholdID: 1, Title: 'Chore 2' }),
@@ -181,7 +187,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should require HouseholdID', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .get('/api/chores')
@@ -195,8 +204,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores/open', () => {
     
     it('should get only open unassigned chores', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertMany([
         createChore({ ChoreID: 1, HouseholdID: 1, Status: 'open', AssignedToUserID: null }),
         createChore({ ChoreID: 2, HouseholdID: 1, Status: 'assigned', AssignedToUserID: 1 }),
@@ -216,8 +227,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores/assigned', () => {
     
     it('should get all assigned chores', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertMany([
         createChore({ ChoreID: 1, HouseholdID: 1, Status: 'assigned', AssignedToUserID: 1 }),
         createChore({ ChoreID: 2, HouseholdID: 1, Status: 'assigned', AssignedToUserID: 2 }),
@@ -236,8 +249,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores/my', () => {
     
     it('should get chores assigned to specific user', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertMany([
         createChore({ ChoreID: 1, HouseholdID: 1, Status: 'assigned', AssignedToUserID: 1 }),
         createChore({ ChoreID: 2, HouseholdID: 1, Status: 'assigned', AssignedToUserID: 2 })
@@ -253,7 +268,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should require UserID and HouseholdID', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .get('/api/chores/my?UserID=1')
@@ -267,8 +285,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores/completed', () => {
     
     it('should get completed chores by user', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertMany([
         createChore({ ChoreID: 1, HouseholdID: 1, Status: 'completed', CompletedByUserID: 1 }),
         createChore({ ChoreID: 2, HouseholdID: 1, Status: 'completed', CompletedByUserID: 2 }),
@@ -288,8 +308,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('GET /api/chores/:id', () => {
     
     it('should get single chore by ID', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1, Title: 'Specific Chore' }));
       
       const response = await request(app)
@@ -302,7 +324,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .get('/api/chores/999')
@@ -316,8 +341,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('PUT /api/chores/:id', () => {
     
     it('should update chore fields', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1 }));
       
       const response = await request(app)
@@ -336,8 +363,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should assign chore when AssignedToUserID provided', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1, Status: 'open' }));
       
       await request(app)
@@ -352,7 +381,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .put('/api/chores/999')
@@ -367,8 +399,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('PATCH /api/chores/:id/claim', () => {
     
     it('should claim an open chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1, Status: 'open' }));
       
       const response = await request(app)
@@ -383,8 +417,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should require AssignedToUserID', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1 }));
       
       const response = await request(app)
@@ -397,7 +433,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .patch('/api/chores/999/claim')
@@ -412,8 +451,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('PATCH /api/chores/:id/complete', () => {
     
     it('should complete a chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ 
         ChoreID: 1, 
         Status: 'assigned',
@@ -433,12 +474,14 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should create next instance for recurring chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('RecurringChores').insertOne(createRecurringChore({
         RecurringTemplateID: 1,
         HouseholdID: 1,
@@ -476,8 +519,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should require CompletedByUserID', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1 }));
       
       const response = await request(app)
@@ -490,7 +535,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .patch('/api/chores/999/complete')
@@ -505,8 +553,10 @@ describe('Chore Routes Integration Tests', () => {
   describe('DELETE /api/chores/:id', () => {
     
     it('should delete a chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Chores').insertOne(createChore({ ChoreID: 1 }));
       
       const response = await request(app)
@@ -521,7 +571,10 @@ describe('Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent chore', async () => {
+      const db = getDb();
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .delete('/api/chores/999')

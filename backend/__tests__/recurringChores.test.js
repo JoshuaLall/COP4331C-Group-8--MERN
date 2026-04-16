@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 
 let app;
 let db;
+let getDb;
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
@@ -51,14 +52,13 @@ function createRecurringChore(overrides = {}) {
 }
 
 beforeAll(async () => {
-  process.env.NODE_ENV = 'test';
   const appModule = await import('../server.js');
   app = appModule.default;
-  await appModule.startServer();
-  db = appModule.db;
+  getDb = appModule.getDb;
 });
 
 beforeEach(async () => {
+  db = getDb();
   await db.collection('Users').deleteMany({});
   await db.collection('Households').deleteMany({});
   await db.collection('Chores').deleteMany({});
@@ -74,6 +74,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
   describe('POST /api/recurring-chores', () => {
     
     it('should create recurring chore template and first instance', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const tomorrow = new Date();
@@ -110,6 +112,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should create assigned chore when DefaultAssignedUserID provided', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const tomorrow = new Date();
@@ -135,6 +139,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should reject missing required fields', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const response = await request(app)
@@ -152,6 +158,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
   describe('POST /api/recurring-chores/generate', () => {
     
     it('should generate chores from due templates', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const yesterday = new Date();
@@ -183,6 +191,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should not generate duplicate chores', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const yesterday = new Date();
@@ -226,6 +236,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should skip templates not yet due', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const tomorrow = new Date();
@@ -244,6 +256,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should skip inactive templates', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const yesterday = new Date();
@@ -266,6 +280,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
   describe('GET /api/recurring-chores', () => {
     
     it('should get all recurring chores for household', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertMany([
@@ -284,6 +300,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should require HouseholdID', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const response = await request(app)
@@ -298,6 +316,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
   describe('PUT /api/recurring-chores/:id', () => {
     
     it('should update recurring chore template', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertOne(createRecurringChore({
@@ -322,6 +342,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should update DefaultAssignedUserID', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertOne(createRecurringChore({
@@ -342,6 +364,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should update RepeatFrequency and RepeatInterval', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertOne(createRecurringChore({
@@ -365,6 +389,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should deactivate recurring chore', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertOne(createRecurringChore({
@@ -385,6 +411,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent template', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const response = await request(app)
@@ -402,6 +430,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
   describe('DELETE /api/recurring-chores/:id', () => {
     
     it('should delete recurring chore template', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('RecurringChores').insertOne(createRecurringChore({
@@ -420,6 +450,8 @@ describe('Recurring Chore Routes Integration Tests', () => {
     });
     
     it('should return 404 for non-existent template', async () => {
+      await db.collection('Users').insertOne(createUser());
+      
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       const response = await request(app)

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 
 let app;
 let db;
+let getDb;
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
@@ -54,14 +55,13 @@ function createChore(overrides = {}) {
 }
 
 beforeAll(async () => {
-  process.env.NODE_ENV = 'test';
   const appModule = await import('../server.js');
   app = appModule.default;
-  await appModule.startServer();
-  db = appModule.db;
+  getDb = appModule.getDb;
 });
 
 beforeEach(async () => {
+  db = getDb();
   await db.collection('Users').deleteMany({});
   await db.collection('Households').deleteMany({});
   await db.collection('Chores').deleteMany({});
@@ -123,6 +123,8 @@ describe('Household Routes Integration Tests', () => {
     it('should reject missing HouseholdName', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
+      
       const response = await request(app)
         .post('/api/households')
         .set('Authorization', `Bearer ${token}`)
@@ -136,6 +138,8 @@ describe('Household Routes Integration Tests', () => {
     
     it('should reject missing UserID', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .post('/api/households')
@@ -169,6 +173,7 @@ describe('Household Routes Integration Tests', () => {
     it('should get household details', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold({
         HouseholdID: 1,
         HouseholdName: 'My House',
@@ -191,6 +196,7 @@ describe('Household Routes Integration Tests', () => {
     it('should generate invite code if missing', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne({
         HouseholdID: 1,
         HouseholdName: 'Test',
@@ -214,6 +220,8 @@ describe('Household Routes Integration Tests', () => {
     it('should return 404 for non-existent household', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
+      
       const response = await request(app)
         .get('/api/households/999')
         .set('Authorization', `Bearer ${token}`)
@@ -228,6 +236,7 @@ describe('Household Routes Integration Tests', () => {
     it('should return invite code without email', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold({
         HouseholdID: 1,
         InviteCode: 'ABC123'
@@ -246,6 +255,7 @@ describe('Household Routes Integration Tests', () => {
     it('should send invite email when email provided', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold({
         HouseholdID: 1,
         InviteCode: 'XYZ789'
@@ -265,11 +275,14 @@ describe('Household Routes Integration Tests', () => {
     it('should reject if user already in household', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
-      await db.collection('Users').insertOne(createUser({
-        UserID: 2,
-        Email: 'existing@example.com',
-        Login: 'existing'
-      }));
+      await db.collection('Users').insertMany([
+        createUser(),
+        createUser({
+          UserID: 2,
+          Email: 'existing@example.com',
+          Login: 'existing'
+        })
+      ]);
       
       await db.collection('Households').insertOne(createHousehold({
         HouseholdID: 1,
@@ -289,6 +302,8 @@ describe('Household Routes Integration Tests', () => {
     
     it('should return 404 for non-existent household', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .post('/api/households/999/invite')
@@ -464,7 +479,10 @@ describe('Household Routes Integration Tests', () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
       await db.collection('Households').insertOne(createHousehold());
-      await db.collection('Users').insertOne(createUser({ UserID: 2, Email: 'user2@example.com', Login: 'user2' }));
+      await db.collection('Users').insertMany([
+        createUser(),
+        createUser({ UserID: 2, Email: 'user2@example.com', Login: 'user2' })
+      ]);
       
       const response = await request(app)
         .post('/api/households/join')
@@ -501,6 +519,7 @@ describe('Household Routes Integration Tests', () => {
     it('should update household name', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold({
         HouseholdID: 1,
         HouseholdName: 'Old Name'
@@ -523,6 +542,7 @@ describe('Household Routes Integration Tests', () => {
     it('should trim household name', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold());
       
       await request(app)
@@ -540,6 +560,7 @@ describe('Household Routes Integration Tests', () => {
     it('should reject empty household name', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
       await db.collection('Households').insertOne(createHousehold());
       
       const response = await request(app)
@@ -555,6 +576,8 @@ describe('Household Routes Integration Tests', () => {
     
     it('should return 404 for non-existent household', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .put('/api/households/999')

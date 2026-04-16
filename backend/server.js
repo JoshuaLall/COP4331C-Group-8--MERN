@@ -17,7 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const url = 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const url = process.env.MONGODB_URI || 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const client = new MongoClient(url);
 let db;
 
@@ -88,4 +88,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
-export { startServer, db };
+export { startServer };
+export function getDb() {
+  return db;
+}

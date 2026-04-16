@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 
 let app;
 let db;
+let getDb;
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
@@ -43,13 +44,13 @@ function createChore(overrides = {}) {
     Description: 'Test description',
     AssignedToUserID: null,
     Status: 'open',
-    DueDate: new Date().toISOString().split('T')[0],  // Changed this line
+    DueDate: new Date().toISOString().split('T')[0],
     Priority: 'medium',
     CreatedByUserID: 1,
-    IsRecurring: false,         // Added
-    RecurringTemplateID: null,  // Added
-    CompletedAt: null,          // Added
-    CompletedByUserID: null,    // Added
+    IsRecurring: false,
+    RecurringTemplateID: null,
+    CompletedAt: null,
+    CompletedByUserID: null,
     CreatedAt: new Date().toISOString(),
     UpdatedAt: new Date().toISOString(),
     ...overrides
@@ -57,14 +58,13 @@ function createChore(overrides = {}) {
 }
 
 beforeAll(async () => {
-  process.env.NODE_ENV = 'test';
   const appModule = await import('../server.js');
   app = appModule.default;
-  await appModule.startServer();
-  db = appModule.db;
+  getDb = appModule.getDb;
 });
 
 beforeEach(async () => {
+  db = getDb();
   await db.collection('Users').deleteMany({});
   await db.collection('Households').deleteMany({});
   await db.collection('Chores').deleteMany({});
@@ -105,6 +105,8 @@ describe('User Routes Integration Tests', () => {
     it('should return empty array for household with no users', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
+      
       const response = await request(app)
         .get('/api/users/household/999')
         .set('Authorization', `Bearer ${token}`)
@@ -135,6 +137,8 @@ describe('User Routes Integration Tests', () => {
     
     it('should return 404 for non-existent user', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+      
+      await db.collection('Users').insertOne(createUser());
       
       const response = await request(app)
         .get('/api/users/999')
@@ -363,6 +367,8 @@ describe('User Routes Integration Tests', () => {
     it('should return 404 for non-existent user', async () => {
       const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
       
+      await db.collection('Users').insertOne(createUser());
+      
       const response = await request(app)
         .put('/api/users/999/remove-from-household')
         .set('Authorization', `Bearer ${token}`)
@@ -429,15 +435,17 @@ describe('User Routes Integration Tests', () => {
       expect(household).toBeNull();
     });
     
-    it('should return 404 for non-existent user', async () => {
-      const token = jwt.sign({ UserID: 999 }, JWT_SECRET);
-      
-      const response = await request(app)
-        .delete('/api/users/999')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(404);
-      
-      expect(response.body.error).toContain('User not found');
+    it('should return 403 when trying to delete a different user (even if non-existent)', async () => {
+        const token = jwt.sign({ UserID: 1 }, JWT_SECRET);
+        
+        await db.collection('Users').insertOne(createUser());
+        
+        const response = await request(app)
+            .delete('/api/users/999')
+            .set('Authorization', `Bearer ${token}`)
+            .expect(403);  // ← Changed from 404 to 403
+        
+        expect(response.body.error).toContain('Not authorized');  // ← Changed error message
     });
   });
 });

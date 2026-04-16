@@ -97,7 +97,7 @@ export default function (db, authenticateToken) {
   // PUT /api/users/:id
   // incoming: FirstName, LastName, Email, Login
   // outgoing: error
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', authenticateToken, async (req, res) => {
     try {
       const userId = Number(req.params.id);
       const { FirstName, LastName, Email, Login } = req.body || {};
@@ -206,7 +206,7 @@ export default function (db, authenticateToken) {
   // PUT /api/users/:id/remove-from-household
   // incoming: none
   // outgoing: error
-  router.put('/:id/remove-from-household', async (req, res) => {
+  router.put('/:id/remove-from-household', authenticateToken, async (req, res) => {
     try {
       const userId = Number(req.params.id);
 
@@ -283,7 +283,7 @@ export default function (db, authenticateToken) {
   // DELETE /api/users/:id
   // incoming: UserID
   // outgoing: error
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', authenticateToken, async (req, res) => {
     try {
       const userId = Number(req.params.id);
 

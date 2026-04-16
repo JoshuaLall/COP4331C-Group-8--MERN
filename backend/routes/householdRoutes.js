@@ -146,7 +146,7 @@ export default function (db, authenticateToken) {
     // POST /api/households/:id/invite
     // incoming: Email (optional — if omitted, just returns the code)
     // outgoing: InviteCode, error
-    router.post('/:id/invite', async (req, res) => {
+    router.post('/:id/invite', authenticateToken, async (req, res) => {
         try {
             const householdId = Number(req.params.id);
             const { Email } = req.body || {};
@@ -195,7 +195,7 @@ export default function (db, authenticateToken) {
     });
 
     // POST /api/households/join
-    router.post('/join', async (req, res) => {
+    router.post('/join', authenticateToken, async (req, res) => {
         try {
             const { HouseholdID, InviteCode, UserID } = req.body || {};
             const userId = Number(UserID);
@@ -293,7 +293,7 @@ export default function (db, authenticateToken) {
 
 
     // PUT /api/households/:id - Added this to update household name
-    router.put('/:id', async (req, res) => {
+    router.put('/:id', authenticateToken, async (req, res) => {
         try {
             const householdId = Number(req.params.id);
             const { HouseholdName } = req.body;

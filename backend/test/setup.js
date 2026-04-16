@@ -13,13 +13,13 @@ beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
   
-  // Connect to it
-  client = new MongoClient(mongoUri);
-  await client.connect();
-  db = client.db('ChoreApp');
-  
   // Set environment variable so app connects to test DB
   process.env.MONGODB_URI = mongoUri;
+  process.env.NODE_ENV = 'test';
+  
+  // NOW call startServer() so the server connects to our test database
+  const { startServer } = await import('../server.js');
+  await startServer();
   
   console.log('✅ Test database ready');
 });

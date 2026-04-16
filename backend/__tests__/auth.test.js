@@ -5,29 +5,20 @@ import jwt from 'jsonwebtoken';
 
 let app;
 let db;
+let getDb;
 let mongoClient;
 
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
 
-// Setup runs before all tests
 beforeAll(async () => {
-  // Set test environment
-  process.env.NODE_ENV = 'test';
-  
-  // Import app module
   const appModule = await import('../server.js');
   app = appModule.default;
-  
-  // Call startServer to register routes
-  await appModule.startServer();
-  
-  // Get db from server module (it connects to the test DB)
-  db = appModule.db;
+  getDb = appModule.getDb;
 });
 
 beforeEach(async () => {
+  db = getDb();
   await db.collection('Users').deleteMany({});
-  await db.collection('Households').deleteMany({});
 });
 
 afterAll(async () => {
@@ -39,49 +30,49 @@ describe('Auth Integration Tests', () => {
   describe('POST /api/auth/register', () => {
     
     it('should register user with invite code (no household name needed)', async () => {
-        // Create first user with household
-        const firstUser = await request(app)
-            .post('/api/auth/register')
-            .send({
-            FirstName: 'First',
-            Email: 'first@example.com',
-            Login: 'first',
-            Password: 'Test1234!@',
-            HouseholdName: 'Test House'
-            })
-            .expect(200);
-        
-        // Find the user's household by looking up which household has this user
-        const user = await db.collection('Users').findOne({ UserID: firstUser.body.UserID });
-        const household = await db.collection('Households').findOne({
-            HouseholdID: user.HouseholdID
-        });
-        
-        expect(household).toBeTruthy();
-        
-        // Second user joins with invite code
-        const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-            FirstName: 'Second',
-            Email: 'second@example.com',
-            Login: 'second',
-            Password: 'Test1234!@',
-            InviteCode: household.InviteCode
-            })
-            .expect(200);
-        
-        const secondUser = await db.collection('Users').findOne({
-            UserID: response.body.UserID
-        });
-        
-        expect(secondUser.HouseholdID).toBe(user.HouseholdID);
-        
-        const updatedHousehold = await db.collection('Households').findOne({
-            HouseholdID: household.HouseholdID
-        });
-        expect(updatedHousehold.MemberIDs).toHaveLength(2);
-        });
+      // Create first user with household
+      const firstUser = await request(app)
+        .post('/api/auth/register')
+        .send({
+          FirstName: 'First',
+          Email: 'first@example.com',
+          Login: 'first',
+          Password: 'Test1234!@',
+          HouseholdName: 'Test House'
+        })
+        .expect(200);
+      
+      // Find the user's household by looking up which household has this user
+      const user = await db.collection('Users').findOne({ UserID: firstUser.body.UserID });
+      const household = await db.collection('Households').findOne({
+        HouseholdID: user.HouseholdID
+      });
+      
+      expect(household).toBeTruthy();
+      
+      // Second user joins with invite code
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          FirstName: 'Second',
+          Email: 'second@example.com',
+          Login: 'second',
+          Password: 'Test1234!@',
+          InviteCode: household.InviteCode
+        })
+        .expect(200);
+      
+      const secondUser = await db.collection('Users').findOne({
+        UserID: response.body.UserID
+      });
+      
+      expect(secondUser.HouseholdID).toBe(user.HouseholdID);
+      
+      const updatedHousehold = await db.collection('Households').findOne({
+        HouseholdID: household.HouseholdID
+      });
+      expect(updatedHousehold.MemberIDs).toHaveLength(2);
+    });
     
     
     it('should reject registration without household name or invite code', async () => {
