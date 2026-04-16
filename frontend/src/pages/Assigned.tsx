@@ -437,6 +437,18 @@ export default function Assigned() {
                                         </button>
 
                                         <button
+                                            type="button"
+                                            className="done-btn"
+                                            style={{ color: "#c0392b", borderColor: "#e4a7a1" }}
+                                            onClick={() => {
+                                                setSelectedChore(chore);
+                                                setShowDeleteConfirm(true);
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
+
+                                        <button
                                             className="done-btn"
                                             onClick={() => handleComplete(chore.ChoreID)}
                                         >

@@ -16,6 +16,7 @@ export default function Dashboard() {
     const [houseName, setHouseName] = useState("");
     const [currentUser, setCurrentUser] = useState("");
     const [showModal, setShowModal] = useState(false);
+    const [isEdit, setIsEdit] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [selectedChore, setSelectedChore] = useState<any>(null);
     const [isRecurring, setIsRecurring] = useState(false);
@@ -126,6 +127,7 @@ export default function Dashboard() {
 
     const resetModal = () => {
         setShowModal(false);
+        setIsEdit(false);
         setShowDeleteConfirm(false);
         setSelectedChore(null);
         setIsRecurring(false);
@@ -139,6 +141,27 @@ export default function Dashboard() {
         });
     };
 
+    const handleOpenCreate = () => {
+        resetModal();
+        setShowModal(true);
+    };
+
+    const handleOpenEdit = (chore: any) => {
+        setIsEdit(true);
+        setSelectedChore(chore);
+        setShowDeleteConfirm(false);
+        setIsRecurring(false);
+        setForm({
+            Title: chore.Title || "",
+            Description: chore.Description || "",
+            DueDate: chore.DueDate || "",
+            Priority: chore.Priority || "medium",
+            AssignedToUserID: chore.AssignedToUserID ? String(chore.AssignedToUserID) : "",
+            RepeatFrequency: "weekly"
+        });
+        setShowModal(true);
+    };
+
     const handleSubmitChore = async () => {
         if (!form.Title.trim()) {
             alert("Please enter a chore title.");
@@ -146,6 +169,31 @@ export default function Dashboard() {
         }
 
         try {
+            if (isEdit && selectedChore) {
+                const res = await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        Title: form.Title,
+                        Description: form.Description,
+                        DueDate: form.DueDate || null,
+                        Priority: form.Priority,
+                        AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null
+                    })
+                });
+
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                markChoresUpdated();
+                resetModal();
+                fetchOpenChores();
+                return;
+            }
+
             if (isRecurring) {
                 await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
@@ -165,6 +213,7 @@ export default function Dashboard() {
 
                 markChoresUpdated();
                 resetModal();
+                fetchOpenChores();
                 return;
             }
 
@@ -307,7 +356,7 @@ export default function Dashboard() {
                             })}
                         </div>
                     </div>
-                    <button type="button" className="tb-btn" onClick={() => setShowModal(true)}>
+                    <button type="button" className="tb-btn" onClick={handleOpenCreate}>
                         + Create Chore
                     </button>
                 </div>
@@ -344,19 +393,28 @@ export default function Dashboard() {
                                         <button
                                             type="button"
                                             className="claim-btn"
-                                            onClick={() => handleClaim(chore.ChoreID)}
+                                            onClick={() => handleOpenEdit(chore)}
                                         >
-                                            Claim
+                                            Edit
                                         </button>
                                         <button
                                             type="button"
                                             className="done-btn"
+                                            style={{ color: "#c0392b", borderColor: "#e4a7a1" }}
                                             onClick={() => {
                                                 setSelectedChore(chore);
                                                 setShowDeleteConfirm(true);
                                             }}
                                         >
                                             Delete
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="done-btn"
+                                            style={{ color: "#3B6D11", borderColor: "#7DA87B" }}
+                                            onClick={() => handleClaim(chore.ChoreID)}
+                                        >
+                                            Claim
                                         </button>
                                     </div>
                                 </div>
@@ -370,7 +428,7 @@ export default function Dashboard() {
                 <div className="modal-overlay" onClick={resetModal}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <div className="modal-title">🏡 New Chore</div>
+                            <div className="modal-title">{isEdit ? "✏️ Edit Chore" : "🏡 New Chore"}</div>
                             <button type="button" className="modal-close" onClick={resetModal}>✕</button>
                         </div>
 
@@ -446,19 +504,21 @@ export default function Dashboard() {
                                 </select>
                             )}
 
-                            <div className="modal-toggle-row">
-                                <label className="modal-lbl" style={{ margin: 0 }}>
-                                    RECURRING CHORE?
-                                </label>
-                                <div
-                                    className={`toggle ${isRecurring ? "on" : ""}`}
-                                    onClick={() => setIsRecurring(!isRecurring)}
-                                >
-                                    <div className="toggle-thumb" />
+                            {!isEdit && (
+                                <div className="modal-toggle-row">
+                                    <label className="modal-lbl" style={{ margin: 0 }}>
+                                        RECURRING CHORE?
+                                    </label>
+                                    <div
+                                        className={`toggle ${isRecurring ? "on" : ""}`}
+                                        onClick={() => setIsRecurring(!isRecurring)}
+                                    >
+                                        <div className="toggle-thumb" />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {isRecurring && (
+                            {isRecurring && !isEdit && (
                                 <div className="modal-col" style={{ marginTop: "10px" }}>
                                     <label className="modal-lbl">REPEAT</label>
                                     <select
@@ -476,11 +536,26 @@ export default function Dashboard() {
                         </div>
 
                         <div className="modal-footer">
+                            {isEdit && selectedChore && (
+                                <button
+                                    type="button"
+                                    className="modal-cancel"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    style={{
+                                        background: "#fff0f0",
+                                        color: "#c0392b",
+                                        border: "1.5px solid #f5c0c0",
+                                        marginRight: "auto"
+                                    }}
+                                >
+                                    🗑️ Delete
+                                </button>
+                            )}
                             <button type="button" className="modal-cancel" onClick={resetModal}>
                                 Cancel
                             </button>
                             <button type="button" className="modal-submit" onClick={handleSubmitChore}>
-                                🏡 Publish Chore
+                                {isEdit ? "💾 Save Changes" : "🏡 Publish Chore"}
                             </button>
                         </div>
                     </div>
