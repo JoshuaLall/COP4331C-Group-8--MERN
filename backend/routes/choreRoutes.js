@@ -78,9 +78,9 @@ export default function (db, authenticateToken) {
 
       // AUTHORIZATION CHECK
       if (householdId !== req.user.HouseholdID) {
-        return res.status(403).json({ 
-          error: 'Forbidden. You can only access chores from your own household.', 
-          results: [] 
+        return res.status(403).json({
+          error: 'Forbidden. You can only access chores from your own household.',
+          results: []
         });
       }
 
@@ -107,9 +107,9 @@ export default function (db, authenticateToken) {
 
     // AUTHORIZATION CHECK
     if (householdId !== req.user.HouseholdID) {
-      return res.status(403).json({ 
-        error: 'Forbidden. You can only access chores from your own household.', 
-        results: [] 
+      return res.status(403).json({
+        error: 'Forbidden. You can only access chores from your own household.',
+        results: []
       });
     }
 
@@ -138,9 +138,9 @@ export default function (db, authenticateToken) {
 
     // AUTHORIZATION CHECK
     if (householdId !== req.user.HouseholdID) {
-      return res.status(403).json({ 
-        error: 'Forbidden. You can only access chores from your own household.', 
-        results: [] 
+      return res.status(403).json({
+        error: 'Forbidden. You can only access chores from your own household.',
+        results: []
       });
     }
 
@@ -174,9 +174,9 @@ export default function (db, authenticateToken) {
 
     // AUTHORIZATION CHECK
     if (householdId !== req.user.HouseholdID) {
-      return res.status(403).json({ 
-        error: 'Forbidden. You can only access chores from your own household.', 
-        results: [] 
+      return res.status(403).json({
+        error: 'Forbidden. You can only access chores from your own household.',
+        results: []
       });
     }
 
@@ -211,9 +211,9 @@ export default function (db, authenticateToken) {
 
     // AUTHORIZATION CHECK
     if (householdId !== req.user.HouseholdID) {
-      return res.status(403).json({ 
-        error: 'Forbidden. You can only access chores from your own household.', 
-        results: [] 
+      return res.status(403).json({
+        error: 'Forbidden. You can only access chores from your own household.',
+        results: []
       });
     }
 
@@ -355,7 +355,7 @@ export default function (db, authenticateToken) {
       }
 
       const chore = await db.collection('Chores').findOne({ ChoreID });
-      
+
       if (!chore) {
         return res.status(404).json({ error: 'Chore not found' });
       }

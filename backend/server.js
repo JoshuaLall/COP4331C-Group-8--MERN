@@ -93,3 +93,6 @@ export { startServer };
 export function getDb() {
   return db;
 }
+export function getClient() {
+  return client;
+}
