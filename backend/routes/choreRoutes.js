@@ -390,7 +390,7 @@ export default function (db, authenticateToken) {
   router.patch('/:id/complete', authenticateToken, async (req, res) => {
     try {
       const ChoreID = parseInt(req.params.id);
-      const { CompletedByUserID } = req.body;
+      const { CompletedByUserID, GenerateNextInstance } = req.body;
 
       const chore = await db.collection('Chores').findOne({ ChoreID });
 
@@ -426,7 +426,9 @@ export default function (db, authenticateToken) {
         return next;
       };
 
-      if (chore && chore.IsRecurring && chore.RecurringTemplateID) {
+      const shouldGenerateNext = GenerateNextInstance !== false;
+
+      if (shouldGenerateNext && chore && chore.IsRecurring && chore.RecurringTemplateID) {
         const template = await db.collection('RecurringChores').findOne({
           RecurringTemplateID: chore.RecurringTemplateID
         });

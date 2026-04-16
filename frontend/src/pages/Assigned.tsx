@@ -296,10 +296,17 @@ export default function Assigned() {
     const handleComplete = async (choreId: number) => {
         if (!userId) return;
         try {
+            const token = localStorage.getItem("token");
             const res = await fetch(`${API_BASE}/chores/${choreId}/complete`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ CompletedByUserID: Number(userId) })
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    CompletedByUserID: Number(userId),
+                    GenerateNextInstance: false
+                })
             });
             const data = await res.json();
             if (data.error === "") {
@@ -430,6 +437,13 @@ export default function Assigned() {
                                         </span>
 
                                         <button
+                                            className="done-btn"
+                                            onClick={() => handleComplete(chore.ChoreID)}
+                                        >
+                                            Mark as Complete
+                                        </button>
+
+                                        <button
                                             className="claim-btn"
                                             onClick={() => handleOpenEdit(chore)}
                                         >
@@ -446,13 +460,6 @@ export default function Assigned() {
                                             }}
                                         >
                                             Delete
-                                        </button>
-
-                                        <button
-                                            className="done-btn"
-                                            onClick={() => handleComplete(chore.ChoreID)}
-                                        >
-                                            Mark as Complete
                                         </button>
                                     </div>
                                 </div>

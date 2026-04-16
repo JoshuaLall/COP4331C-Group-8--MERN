@@ -224,13 +224,26 @@ export default function MyChores() {
 
     const handleComplete = async (id: number) => {
         try {
-            await fetch(`${API_BASE}/chores/${id}/complete`, {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_BASE}/chores/${id}/complete`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ CompletedByUserID: userId })
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    CompletedByUserID: userId,
+                    GenerateNextInstance: false
+                })
             });
-            markChoresUpdated();
-            fetchMyChores();
+
+            const data = await res.json();
+            if (data.error === "") {
+                markChoresUpdated();
+                fetchMyChores();
+            } else {
+                alert(data.error || "Failed to complete chore");
+            }
         } catch (e) {
             console.log("Failed to complete chore:", e);
         }
@@ -377,7 +390,7 @@ export default function MyChores() {
                                             className="done-btn"
                                             onClick={() => handleComplete(chore.ChoreID)}
                                         >
-                                            Complete
+                                            Mark as Complete
                                         </button>
 
                                         <button

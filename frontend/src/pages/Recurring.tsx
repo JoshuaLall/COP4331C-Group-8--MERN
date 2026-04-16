@@ -268,9 +268,15 @@ export default function Recurring() {
     // Mark the most recent active chore instance as complete
     const handleComplete = async (chore: any) => {
         try {
+            const token = localStorage.getItem("token");
             // Find the active chore instance linked to this recurring template
             const res = await fetch(
-                `${API_BASE}/chores?HouseholdID=${householdId}`
+                `${API_BASE}/chores?HouseholdID=${householdId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
             );
             const data = await res.json();
             if (data.error !== "") return;
@@ -300,11 +306,19 @@ export default function Recurring() {
             if (!instance) {
                 await fetch(`${API_BASE}/recurring-chores/generate`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" }
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    }
                 });
 
                 const retryRes = await fetch(
-                    `${API_BASE}/chores?HouseholdID=${householdId}`
+                    `${API_BASE}/chores?HouseholdID=${householdId}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
                 );
                 const retryData = await retryRes.json();
                 if (retryData.error === "") {
@@ -321,16 +335,15 @@ export default function Recurring() {
                 `${API_BASE}/chores/${instance.ChoreID}/complete`,
                 {
                     method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
                     body: JSON.stringify({ CompletedByUserID: userId })
                 }
             );
             const completeData = await completeRes.json();
             if (completeData.error === "") {
-                await fetch(`${API_BASE}/recurring-chores/generate`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" }
-                });
                 fetchAll();
             } else {
                 alert(completeData.error);
