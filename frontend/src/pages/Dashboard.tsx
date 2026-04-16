@@ -413,7 +413,7 @@ export default function Dashboard() {
                                     className={`toggle ${isRecurring ? "on" : ""}`}
                                     onClick={() => setIsRecurring(!isRecurring)}
                                 >
-                                    <div className="toggle-knob" />
+                                    <div className="toggle-thumb" />
                                 </div>
                             </div>
 
@@ -434,12 +434,12 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        <div className="modal-actions">
+                        <div className="modal-footer">
                             <button type="button" className="modal-cancel" onClick={resetModal}>
                                 Cancel
                             </button>
-                            <button type="button" className="modal-save" onClick={handleSubmitChore}>
-                                Create
+                            <button type="button" className="modal-submit" onClick={handleSubmitChore}>
+                                🏡 Publish Chore
                             </button>
                         </div>
                     </div>
