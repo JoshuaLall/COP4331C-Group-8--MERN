@@ -152,6 +152,10 @@
     animation: rise 2.8s ease-in-out infinite;
 }
 
+.smoke span:nth-child(1) {
+    animation-delay: 1s;
+}
+
 .smoke span:nth-child(2) {
     width: 11px;
     height: 11px;
@@ -162,7 +166,7 @@
 .smoke span:nth-child(3) {
     width: 14px;
     height: 14px;
-    animation-delay: 1s;
+    animation-delay: 0s;
     opacity: 0.6;
 }
 
