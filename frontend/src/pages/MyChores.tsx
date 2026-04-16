@@ -374,6 +374,13 @@ export default function MyChores() {
                                         </span>
 
                                         <button
+                                            className="done-btn"
+                                            onClick={() => handleComplete(chore.ChoreID)}
+                                        >
+                                            Complete
+                                        </button>
+
+                                        <button
                                             className="claim-btn"
                                             onClick={() => handleEdit(chore)}
                                         >
@@ -390,13 +397,6 @@ export default function MyChores() {
                                             }}
                                         >
                                             Delete
-                                        </button>
-
-                                        <button
-                                            className="done-btn"
-                                            onClick={() => handleComplete(chore.ChoreID)}
-                                        >
-                                            Complete
                                         </button>
                                     </div>
                                 </div>

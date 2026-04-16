@@ -392,6 +392,14 @@ export default function Dashboard() {
                                         </span>
                                         <button
                                             type="button"
+                                            className="done-btn"
+                                            style={{ color: "#3B6D11", borderColor: "#7DA87B" }}
+                                            onClick={() => handleClaim(chore.ChoreID)}
+                                        >
+                                            Claim
+                                        </button>
+                                        <button
+                                            type="button"
                                             className="claim-btn"
                                             onClick={() => handleOpenEdit(chore)}
                                         >
@@ -407,14 +415,6 @@ export default function Dashboard() {
                                             }}
                                         >
                                             Delete
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="done-btn"
-                                            style={{ color: "#3B6D11", borderColor: "#7DA87B" }}
-                                            onClick={() => handleClaim(chore.ChoreID)}
-                                        >
-                                            Claim
                                         </button>
                                     </div>
                                 </div>
