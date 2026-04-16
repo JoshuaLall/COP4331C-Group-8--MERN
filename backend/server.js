@@ -18,7 +18,8 @@ app.use(cors());
 app.use(express.json());
 
 const url = process.env.MONGODB_URI || 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const client = new MongoClient(url);
+const useTls = url.startsWith('mongodb+srv://') || url.includes('.mongodb.net');
+const client = new MongoClient(url, useTls ? { tls: true } : {});
 let db;
 
 // Simple routes
