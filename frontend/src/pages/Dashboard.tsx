@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
+import { readApiResponse } from "../utils/api";
 
 const API_BASE = "/api";
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
 
     const markChoresUpdated = () => {
         localStorage.setItem("choresLastUpdated", Date.now().toString());
+        window.dispatchEvent(new Event("choresUpdated"));
     };
 
     const fetchOpenChores = async () => {
@@ -83,6 +85,24 @@ export default function Dashboard() {
     useEffect(() => {
         if (!userId || !householdId) return;
         fetchAll();
+    }, [userId, householdId]);
+
+    useEffect(() => {
+        const handleUpdate = (e?: Event) => {
+            if (!(e instanceof StorageEvent) || e.key === "choresLastUpdated") {
+                fetchOpenChores();
+            }
+        };
+
+        window.addEventListener("storage", handleUpdate);
+        window.addEventListener("choresUpdated", handleUpdate);
+        window.addEventListener("focus", handleUpdate);
+
+        return () => {
+            window.removeEventListener("storage", handleUpdate);
+            window.removeEventListener("choresUpdated", handleUpdate);
+            window.removeEventListener("focus", handleUpdate);
+        };
     }, [userId, householdId]);
 
     useEffect(() => {
@@ -195,7 +215,7 @@ export default function Dashboard() {
             }
 
             if (isRecurring) {
-                await fetch(`${API_BASE}/recurring-chores`, {
+                const res = await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -210,6 +230,7 @@ export default function Dashboard() {
                         Priority: form.Priority
                     })
                 });
+                await readApiResponse<{ error: string }>(res);
 
                 markChoresUpdated();
                 resetModal();

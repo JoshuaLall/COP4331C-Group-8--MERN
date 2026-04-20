@@ -7,7 +7,7 @@ export default function (db, authenticateToken) {
   // POST /api/recurring-chores
   // incoming: HouseholdID, Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, CreatedByUserID
   // outgoing: RecurringTemplateID, error
-  router.post('/', async (req, res) => {
+  router.post('/', authenticateToken, async (req, res) => {
     try {
       const {
         HouseholdID,
@@ -17,7 +17,8 @@ export default function (db, authenticateToken) {
         RepeatFrequency,
         RepeatInterval,
         NextDueDate,
-        CreatedByUserID
+        CreatedByUserID,
+        Priority
       } = req.body;
 
       if (
@@ -29,6 +30,10 @@ export default function (db, authenticateToken) {
         !CreatedByUserID
       ) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (Number(HouseholdID) !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only create recurring chores in your own household.' });
       }
 
       const lastTemplate = await db
@@ -52,6 +57,7 @@ export default function (db, authenticateToken) {
         RepeatFrequency,
         RepeatInterval: Number(RepeatInterval),
         NextDueDate,
+        Priority: (Priority || 'medium').toLowerCase(),
         CreatedByUserID: Number(CreatedByUserID),
         IsActive: true,
         CreatedAt: now,
@@ -77,7 +83,7 @@ export default function (db, authenticateToken) {
         CreatedByUserID: Number(CreatedByUserID),
         AssignedToUserID: DefaultAssignedUserID ? Number(DefaultAssignedUserID) : null,
         DueDate: NextDueDate,
-        Priority: 'medium',
+        Priority: (Priority || 'medium').toLowerCase(),
 
         IsRecurring: true,
         RecurringTemplateID: newRecurringTemplateID,
@@ -97,10 +103,11 @@ export default function (db, authenticateToken) {
     }
   });
 
-  router.post('/generate', async (req, res) => {
+  router.post('/generate', authenticateToken, async (req, res) => {
     try {
       const today = new Date();
       const templates = await db.collection('RecurringChores').find({
+        HouseholdID: req.user.HouseholdID,
         IsActive: true
       }).toArray();
 
@@ -183,12 +190,19 @@ export default function (db, authenticateToken) {
   // GET /api/recurring-chores
   // incoming: HouseholdID
   // outgoing: results[], error
-  router.get('/', async (req, res) => {
+  router.get('/', authenticateToken, async (req, res) => {
     try {
       const householdId = parseInt(req.query.HouseholdID);
 
       if (!householdId) {
         return res.status(400).json({ error: 'HouseholdID is required', results: [] });
+      }
+
+      if (householdId !== req.user.HouseholdID) {
+        return res.status(403).json({
+          error: 'Forbidden. You can only access recurring chores from your own household.',
+          results: []
+        });
       }
 
       const results = await db.collection('RecurringChores').find({
@@ -204,7 +218,7 @@ export default function (db, authenticateToken) {
   // PUT /api/recurring-chores/:id
   // incoming: Title, Description, DefaultAssignedUserID, RepeatFrequency, RepeatInterval, NextDueDate, IsActive
   // outgoing: error
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', authenticateToken, async (req, res) => {
     try {
       const RecurringTemplateID = parseInt(req.params.id);
       const {
@@ -214,11 +228,22 @@ export default function (db, authenticateToken) {
         RepeatFrequency,
         RepeatInterval,
         NextDueDate,
-        IsActive
+        IsActive,
+        Priority
       } = req.body || {};
 
       if (!RecurringTemplateID) {
         return res.status(400).json({ error: 'RecurringTemplateID is required' });
+      }
+
+      const existingTemplate = await db.collection('RecurringChores').findOne({ RecurringTemplateID });
+
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'Recurring chore not found' });
+      }
+
+      if (existingTemplate.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only update recurring chores from your own household.' });
       }
 
       const updateFields = {
@@ -234,14 +259,38 @@ export default function (db, authenticateToken) {
       if (RepeatInterval !== undefined) updateFields.RepeatInterval = Number(RepeatInterval);
       if (NextDueDate !== undefined) updateFields.NextDueDate = NextDueDate;
       if (IsActive !== undefined) updateFields.IsActive = IsActive;
+      if (Priority) updateFields.Priority = Priority.toLowerCase();
 
-      const result = await db.collection('RecurringChores').updateOne(
+      await db.collection('RecurringChores').updateOne(
         { RecurringTemplateID },
         { $set: updateFields }
       );
 
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ error: 'Recurring chore not found' });
+      const choreUpdateFields = {
+        UpdatedAt: updateFields.UpdatedAt
+      };
+
+      if (Title) choreUpdateFields.Title = Title;
+      if (Description !== undefined) choreUpdateFields.Description = Description;
+      if (DefaultAssignedUserID !== undefined) {
+        const assignedUserId = DefaultAssignedUserID === null ? null : Number(DefaultAssignedUserID);
+        choreUpdateFields.AssignedToUserID = assignedUserId;
+        choreUpdateFields.Status = assignedUserId ? 'assigned' : 'open';
+      }
+      if (RepeatFrequency) choreUpdateFields.RepeatFrequency = RepeatFrequency;
+      if (RepeatInterval !== undefined) choreUpdateFields.RepeatInterval = Number(RepeatInterval);
+      if (NextDueDate !== undefined) choreUpdateFields.DueDate = NextDueDate;
+      if (Priority) choreUpdateFields.Priority = Priority.toLowerCase();
+
+      if (Object.keys(choreUpdateFields).length > 1) {
+        await db.collection('Chores').updateMany(
+          {
+            RecurringTemplateID,
+            HouseholdID: existingTemplate.HouseholdID,
+            Status: { $ne: 'completed' }
+          },
+          { $set: choreUpdateFields }
+        );
       }
 
       res.status(200).json({ error: '' });
@@ -253,12 +302,22 @@ export default function (db, authenticateToken) {
   // DELETE /api/recurring-chores/:id
   // incoming: RecurringTemplateID
   // outgoing: error
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', authenticateToken, async (req, res) => {
     try {
       const RecurringTemplateID = parseInt(req.params.id);
 
       if (!RecurringTemplateID) {
         return res.status(400).json({ error: 'RecurringTemplateID is required' });
+      }
+
+      const existingTemplate = await db.collection('RecurringChores').findOne({ RecurringTemplateID });
+
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'Recurring chore not found' });
+      }
+
+      if (existingTemplate.HouseholdID !== req.user.HouseholdID) {
+        return res.status(403).json({ error: 'Forbidden. You can only delete recurring chores from your own household.' });
       }
 
       const result = await db.collection('RecurringChores').deleteOne({ RecurringTemplateID });

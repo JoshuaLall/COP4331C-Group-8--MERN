@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
+import { readApiResponse } from "../utils/api";
 
 const API_BASE = "/api";
 
@@ -128,7 +129,7 @@ export default function MyChores() {
     const handleSubmit = async () => {
         try {
             if (isEdit && selectedChore) {
-                await fetch(
+                const res = await fetch(
                     `${API_BASE}/chores/${selectedChore.ChoreID}`,
                     {
                         method: "PUT",
@@ -136,10 +137,11 @@ export default function MyChores() {
                         body: JSON.stringify(form)
                     }
                 );
+                await readApiResponse<{ error: string }>(res);
             } else {
                 if (isRecurring) {
                     // CREATE RECURRING TEMPLATE — shows up in Recurring.tsx
-                    await fetch(`${API_BASE}/recurring-chores`, {
+                    const res = await fetch(`${API_BASE}/recurring-chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -156,9 +158,10 @@ export default function MyChores() {
                             Priority: form.Priority
                         })
                     });
+                    await readApiResponse<{ error: string }>(res);
                 } else {
                     // NORMAL ONE-OFF CHORE
-                    await fetch(`${API_BASE}/chores`, {
+                    const res = await fetch(`${API_BASE}/chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -170,6 +173,7 @@ export default function MyChores() {
                             CreatedByUserID: userId
                         })
                     });
+                    await readApiResponse<{ error: string }>(res);
                 }
             }
 
@@ -178,6 +182,7 @@ export default function MyChores() {
             fetchMyChores();
         } catch (e) {
             console.log("Submit failed:", e);
+            alert(e instanceof Error ? e.message : "Failed to save chore");
         }
     };
 

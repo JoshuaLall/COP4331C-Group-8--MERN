@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
+import { readApiResponse } from "../utils/api";
 
 const API_BASE = "/api";
 
@@ -91,7 +92,7 @@ export default function Recurring() {
     useEffect(() => {
         if (!userId || !householdId) return;
         fetchAll();
-    }, []);
+    }, [userId, householdId]);
 
     // ================= HELPERS =================
 
@@ -173,7 +174,7 @@ export default function Recurring() {
         if (!form.Title.trim()) { alert("Please enter a chore title."); return; }
         try {
             if (isEdit && selectedChore) {
-                await fetch(`${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`, {
+                const res = await fetch(`${API_BASE}/recurring-chores/${selectedChore.RecurringTemplateID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -186,30 +187,9 @@ export default function Recurring() {
                         Priority: form.Priority
                     })
                 });
-                const allRes = await fetch(`${API_BASE}/chores?HouseholdID=${householdId}`);
-                const allData = await allRes.json();
-                if (allData.error === "") {
-                    const instances = (allData.results || []).filter(
-                        (c: any) =>
-                            Number(c.RecurringTemplateID) === Number(selectedChore.RecurringTemplateID) &&
-                            c.Status !== "completed"
-                    );
-                    for (const instance of instances) {
-                        await fetch(`${API_BASE}/chores/${instance.ChoreID}`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                Title: form.Title,
-                                Description: form.Description,
-                                Priority: form.Priority,
-                                AssignedToUserID: form.AssignedToUserID ? Number(form.AssignedToUserID) : null,
-                                Status: form.AssignedToUserID ? "assigned" : "open"
-                            })
-                        });
-                    }
-                }
+                await readApiResponse<{ error: string }>(res);
             } else {
-                await fetch(`${API_BASE}/recurring-chores`, {
+                const res = await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -226,12 +206,14 @@ export default function Recurring() {
                         Priority: form.Priority
                     })
                 });
+                await readApiResponse<{ error: string }>(res);
             }
             markChoresUpdated();
             resetModal();
             fetchRecurring();
         } catch (e) {
             console.log("Submit failed:", e);
+            alert(e instanceof Error ? e.message : "Failed to save recurring chore");
         }
     };
 
@@ -344,6 +326,7 @@ export default function Recurring() {
             );
             const completeData = await completeRes.json();
             if (completeData.error === "") {
+                markChoresUpdated();
                 fetchAll();
             } else {
                 alert(completeData.error);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
+import { readApiResponse } from "../utils/api";
 
 const API_BASE = "/api";
 
@@ -158,7 +159,7 @@ export default function Completed() {
 
         try {
             if (isRecurring) {
-                await fetch(`${API_BASE}/recurring-chores`, {
+                const res = await fetch(`${API_BASE}/recurring-chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -173,8 +174,9 @@ export default function Completed() {
                         Priority: form.Priority
                     })
                 });
+                await readApiResponse<{ error: string }>(res);
             } else {
-                await fetch(`${API_BASE}/chores`, {
+                const res = await fetch(`${API_BASE}/chores`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -187,12 +189,14 @@ export default function Completed() {
                         CreatedByUserID: userId
                     })
                 });
+                await readApiResponse<{ error: string }>(res);
             }
 
             markChoresUpdated();
             resetModal();
         } catch (e) {
             console.log("Error creating chore:", e);
+            alert(e instanceof Error ? e.message : "Failed to create chore");
         }
     };
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../CSS/Dashboard.css";
+import { readApiResponse } from "../utils/api";
 
 const API_BASE = "/api";
 
@@ -209,7 +210,7 @@ export default function Assigned() {
 
         try {
             if (isEdit && selectedChore) {
-                await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
+                const res = await fetch(`${API_BASE}/chores/${selectedChore.ChoreID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -221,9 +222,10 @@ export default function Assigned() {
                         Status: form.AssignedToUserID ? "assigned" : "open"
                     })
                 });
+                await readApiResponse<{ error: string }>(res);
             } else {
                 if (isRecurring) {
-                    await fetch(`${API_BASE}/recurring-chores`, {
+                    const res = await fetch(`${API_BASE}/recurring-chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -240,8 +242,9 @@ export default function Assigned() {
                             Priority: form.Priority
                         })
                     });
+                    await readApiResponse<{ error: string }>(res);
                 } else {
-                    await fetch(`${API_BASE}/chores`, {
+                    const res = await fetch(`${API_BASE}/chores`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -256,6 +259,7 @@ export default function Assigned() {
                             CreatedByUserID: Number(userId)
                         })
                     });
+                    await readApiResponse<{ error: string }>(res);
                 }
             }
 
@@ -264,6 +268,7 @@ export default function Assigned() {
             fetchAssigned();
         } catch (e) {
             console.log("Submit failed:", e);
+            alert(e instanceof Error ? e.message : "Failed to save chore");
         }
     };
 
