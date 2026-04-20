@@ -118,10 +118,8 @@ export default function Overview() {
             fetchCompletedChores();
         };
         window.addEventListener("choresUpdated", handleUpdate);
-        window.addEventListener("focus", handleUpdate);
         return () => {
             window.removeEventListener("choresUpdated", handleUpdate);
-            window.removeEventListener("focus", handleUpdate);
         };
     }, [userId, householdId]);
 

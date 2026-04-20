@@ -14,13 +14,47 @@ import choreRoutesModule from './routes/choreRoutes.js';
 import recurringChoreRoutesModule from './routes/recurringChoreRoutes.js';
 
 const app = express();
+app.disable('etag');
 app.use(cors());
 app.use(express.json());
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 const url = process.env.MONGODB_URI || 'mongodb+srv://Admin:12345678Ab@cluster0.tt0dzm0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const useTls = url.startsWith('mongodb+srv://') || url.includes('.mongodb.net');
 const client = new MongoClient(url, useTls ? { tls: true } : {});
 let db;
+
+async function ensureDatabaseIndexes(database) {
+  await Promise.all([
+    database.collection('Chores').createIndexes([
+      { key: { ChoreID: 1 } },
+      { key: { HouseholdID: 1 } },
+      { key: { HouseholdID: 1, Status: 1, AssignedToUserID: 1 } },
+      { key: { HouseholdID: 1, CompletedByUserID: 1, Status: 1, CompletedAt: -1 } },
+      { key: { RecurringTemplateID: 1, HouseholdID: 1, Status: 1 } }
+    ]),
+    database.collection('RecurringChores').createIndexes([
+      { key: { RecurringTemplateID: 1 } },
+      { key: { HouseholdID: 1 } },
+      { key: { HouseholdID: 1, IsActive: 1 } }
+    ]),
+    database.collection('Users').createIndexes([
+      { key: { UserID: 1 } },
+      { key: { HouseholdID: 1 } },
+      { key: { Email: 1 } },
+      { key: { Login: 1 } }
+    ]),
+    database.collection('Households').createIndexes([
+      { key: { HouseholdID: 1 } },
+      { key: { InviteCode: 1 } }
+    ])
+  ]);
+}
 
 // Simple routes
 app.get('/api/ping', (req, res) => {
@@ -54,6 +88,8 @@ async function startServer() {
     await client.connect();
     db = client.db('ChoreApp');
     console.log('MongoDB connected');
+    await ensureDatabaseIndexes(db);
+    console.log('Database indexes ready');
 
     // NOW create authenticateToken with db
     const authenticateToken = createAuthMiddleware(db);

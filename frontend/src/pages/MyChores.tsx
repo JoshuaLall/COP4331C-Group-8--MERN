@@ -105,18 +105,12 @@ export default function MyChores() {
             fetchMyChores();
         };
 
-        const handleFocus = () => {
-            fetchMyChores();
-        };
-
         window.addEventListener("storage", handleStorage);
         window.addEventListener("choresUpdated", handleCustomUpdate);
-        window.addEventListener("focus", handleFocus);
 
         return () => {
             window.removeEventListener("storage", handleStorage);
             window.removeEventListener("choresUpdated", handleCustomUpdate);
-            window.removeEventListener("focus", handleFocus);
         };
     }, [userId, householdId]);
 

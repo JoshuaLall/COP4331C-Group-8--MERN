@@ -96,12 +96,9 @@ export default function Dashboard() {
 
         window.addEventListener("storage", handleUpdate);
         window.addEventListener("choresUpdated", handleUpdate);
-        window.addEventListener("focus", handleUpdate);
-
         return () => {
             window.removeEventListener("storage", handleUpdate);
             window.removeEventListener("choresUpdated", handleUpdate);
-            window.removeEventListener("focus", handleUpdate);
         };
     }, [userId, householdId]);
 
