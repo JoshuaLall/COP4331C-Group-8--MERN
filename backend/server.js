@@ -56,6 +56,39 @@ async function ensureDatabaseIndexes(database) {
   ]);
 }
 
+async function warmDatabase(database, reason = 'scheduled') {
+  const start = Date.now();
+
+  try {
+    await database.command({ ping: 1 });
+    await Promise.all([
+      database.collection('Users').findOne({}, { projection: { _id: 1 } }),
+      database.collection('Chores').findOne({}, { projection: { _id: 1 } }),
+      database.collection('RecurringChores').findOne({}, { projection: { _id: 1 } }),
+      database.collection('Households').findOne({}, { projection: { _id: 1 } })
+    ]);
+
+    const elapsed = Date.now() - start;
+    if (elapsed > 500) {
+      console.log(`[timing] Mongo warm-up ${reason} total=${elapsed}ms`);
+    }
+  } catch (e) {
+    console.warn(`Mongo warm-up ${reason} failed:`, e.toString());
+  }
+}
+
+function startDatabaseWarmup(database) {
+  warmDatabase(database, 'startup');
+
+  const interval = setInterval(() => {
+    warmDatabase(database);
+  }, 4 * 60 * 1000);
+
+  if (typeof interval.unref === 'function') {
+    interval.unref();
+  }
+}
+
 // Simple routes
 app.get('/api/ping', (req, res) => {
   res.status(200).json({ message: 'Hello World' });
@@ -90,6 +123,7 @@ async function startServer() {
     console.log('MongoDB connected');
     await ensureDatabaseIndexes(db);
     console.log('Database indexes ready');
+    startDatabaseWarmup(db);
 
     // NOW create authenticateToken with db
     const authenticateToken = createAuthMiddleware(db);

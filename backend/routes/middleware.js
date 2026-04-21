@@ -14,7 +14,7 @@ export default function createAuthMiddleware(db) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       
-      // Fetch user from database to get HouseholdID
+      // Fetch user from database to get current HouseholdID.
       const authStart = Date.now();
       const user = await db.collection('Users').findOne({ UserID: decoded.UserID });
       const authMs = Date.now() - authStart;
