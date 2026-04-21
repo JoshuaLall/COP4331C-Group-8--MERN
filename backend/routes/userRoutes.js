@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 
 const router = express.Router();
+const SLOW_REQUEST_MS = 500;
 
 export default function (db, authenticateToken) {
   const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
@@ -33,6 +34,7 @@ export default function (db, authenticateToken) {
   // incoming: HouseholdID
   // outgoing: results[], error
   router.get('/household/:householdId', async (req, res) => {
+    const routeStart = Date.now();
     try {
       const householdId = Number(req.params.householdId);
 
@@ -54,6 +56,11 @@ export default function (db, authenticateToken) {
           }
         }
       ).toArray();
+      const totalMs = Date.now() - routeStart;
+
+      if (totalMs >= SLOW_REQUEST_MS) {
+        console.log(`[timing] GET /api/users/household/${householdId} query=${totalMs}ms results=${results.length}`);
+      }
 
       res.status(200).json({ error: '', results });
     } catch (e) {

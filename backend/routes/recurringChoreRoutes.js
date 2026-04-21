@@ -1,6 +1,7 @@
 import express from 'express';
 
 const router = express.Router();
+const SLOW_REQUEST_MS = 500;
 
 export default function (db, authenticateToken) {
 
@@ -191,6 +192,7 @@ export default function (db, authenticateToken) {
   // incoming: HouseholdID
   // outgoing: results[], error
   router.get('/', authenticateToken, async (req, res) => {
+    const routeStart = Date.now();
     try {
       const householdId = parseInt(req.query.HouseholdID);
 
@@ -205,9 +207,16 @@ export default function (db, authenticateToken) {
         });
       }
 
+      const queryStart = Date.now();
       const results = await db.collection('RecurringChores').find({
         HouseholdID: householdId
       }).toArray();
+      const queryMs = Date.now() - queryStart;
+      const totalMs = Date.now() - routeStart;
+
+      if (totalMs >= SLOW_REQUEST_MS || queryMs >= SLOW_REQUEST_MS) {
+        console.log(`[timing] GET /api/recurring-chores HouseholdID=${householdId} auth=${req.authTimingMs || 0}ms query=${queryMs}ms total=${totalMs}ms results=${results.length}`);
+      }
 
       res.status(200).json({ error: '', results });
     } catch (e) {

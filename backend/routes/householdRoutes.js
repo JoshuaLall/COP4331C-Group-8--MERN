@@ -2,6 +2,7 @@ import express from 'express';
 import { Resend } from 'resend';
 
 const router = express.Router();
+const SLOW_REQUEST_MS = 500;
 
 export default function (db, authenticateToken) {
     const resend = process.env.RESEND_API_KEY
@@ -120,14 +121,24 @@ export default function (db, authenticateToken) {
 
     // GET /api/households/:id
     router.get('/:id', async (req, res) => {
+        const routeStart = Date.now();
         try {
             const householdId = Number(req.params.id);
             if (!householdId) return res.status(400).json({ error: 'HouseholdID is required' });
 
+            const findStart = Date.now();
             const household = await db.collection('Households').findOne({ HouseholdID: householdId });
+            const findMs = Date.now() - findStart;
             if (!household) return res.status(404).json({ error: 'Household not found' });
 
+            const inviteStart = Date.now();
             const inviteCode = await ensureHouseholdInviteCode(household);
+            const inviteMs = Date.now() - inviteStart;
+            const totalMs = Date.now() - routeStart;
+
+            if (totalMs >= SLOW_REQUEST_MS || findMs >= SLOW_REQUEST_MS || inviteMs >= SLOW_REQUEST_MS) {
+                console.log(`[timing] GET /api/households/${householdId} find=${findMs}ms invite=${inviteMs}ms total=${totalMs}ms`);
+            }
 
             res.status(200).json({
                 error: '',

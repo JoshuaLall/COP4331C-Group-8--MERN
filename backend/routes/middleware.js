@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || "ourplace_secret_key";
+const SLOW_REQUEST_MS = 500;
 
 export default function createAuthMiddleware(db) {
   return async function authenticateToken(req, res, next) {
@@ -14,7 +15,9 @@ export default function createAuthMiddleware(db) {
       const decoded = jwt.verify(token, JWT_SECRET);
       
       // Fetch user from database to get HouseholdID
+      const authStart = Date.now();
       const user = await db.collection('Users').findOne({ UserID: decoded.UserID });
+      const authMs = Date.now() - authStart;
       
       if (!user) {
         return res.status(401).json({ error: 'User not found.' });
@@ -26,6 +29,12 @@ export default function createAuthMiddleware(db) {
         Email: user.Email,
         HouseholdID: user.HouseholdID
       };
+
+      req.authTimingMs = authMs;
+
+      if (authMs >= SLOW_REQUEST_MS) {
+        console.log(`[timing] auth user lookup UserID=${decoded.UserID} path=${req.originalUrl} auth=${authMs}ms`);
+      }
       
       next();
     } catch (e) {

@@ -1,6 +1,7 @@
 import express from 'express';
 
 const router = express.Router();
+const SLOW_REQUEST_MS = 500;
 
 export default function (db, authenticateToken) {
 
@@ -99,6 +100,7 @@ export default function (db, authenticateToken) {
   // outgoing: results[], error
   // returns chores that are NOT assigned yet
   router.get('/open', authenticateToken, async (req, res) => {
+    const routeStart = Date.now();
     const householdId = parseInt(req.query.HouseholdID);
 
     if (!householdId) {
@@ -114,11 +116,18 @@ export default function (db, authenticateToken) {
     }
 
     try {
+      const queryStart = Date.now();
       const results = await db.collection('Chores').find({
         HouseholdID: householdId,
         Status: 'open',
         AssignedToUserID: null
       }).toArray();
+      const queryMs = Date.now() - queryStart;
+      const totalMs = Date.now() - routeStart;
+
+      if (totalMs >= SLOW_REQUEST_MS || queryMs >= SLOW_REQUEST_MS) {
+        console.log(`[timing] GET /api/chores/open HouseholdID=${householdId} auth=${req.authTimingMs || 0}ms query=${queryMs}ms total=${totalMs}ms results=${results.length}`);
+      }
 
       res.status(200).json({ error: "", results });
     } catch (e) {
